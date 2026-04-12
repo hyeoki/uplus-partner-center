@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  loginId   String   @unique
+  password  String
+  name      String
+  grade     String   @default("골드")
+  role      String   @default("partner") // partner | admin
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notices  Notice[]
+  comments Comment[]
+}
+
+model Notice {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  tag       String   // 중요, 시스템, 정책, 일반
+  pinned    Boolean  @default(false)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reactions Reaction[]
+  comments  Comment[]
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  noticeId  Int
+  notice    Notice   @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Reaction {
+  id       Int    @id @default(autoincrement())
+  emoji    String
+  noticeId Int
+  notice   Notice @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+  userId   String
+
+  @@unique([noticeId, emoji, userId])
+}
+
+model Category {
+  id       Int      @id @default(autoincrement())
+  name     String
+  colorId  String   @default("blue")
+  active   Boolean  @default(true)
+  sortOrder Int     @default(0)
+
+  archives Archive[]
+}
+
+model Archive {
+  id         Int      @id @default(autoincrement())
+  title      String
+  type       String   // file | link
+  ext        String?
+  size       String?
+  url        String?
+  downloads  Int      @default(0)
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
