@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createInquiry, deleteInquiry, replyInquiry, updateInquiry } from "@/app/(dashboard)/inquiry/actions";
 
 type InquiryRow = {
@@ -67,8 +67,31 @@ type DrawerMode = "closed" | "register" | "edit" | "detail";
 
 export default function InquiryShell({ inquiries, isAdmin = false, adminProfile = null }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const composeQuery = searchParams.get("compose");
+  const q = searchParams.get("q") ?? "";
+  const catFilter = searchParams.get("cat") ?? "";
+  const [, startFilterTransition] = useTransition();
+
+  function updateParams(key: string, value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set(key, value);
+    else params.delete(key);
+    startFilterTransition(() => {
+      router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
+    });
+  }
+
+  const filteredInquiries = useMemo(() => {
+    return inquiries.filter((i) => {
+      const visibleTitle = i.canViewBody ? i.title : "";
+      const visibleContent = i.canViewBody ? i.content : "";
+      const matchQ = q ? (visibleTitle.toLowerCase().includes(q.toLowerCase()) || visibleContent.toLowerCase().includes(q.toLowerCase())) : true;
+      const matchCat = catFilter ? i.category === catFilter : true;
+      return matchQ && matchCat;
+    });
+  }, [inquiries, q, catFilter]);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>("closed");
   const [selected, setSelected] = useState<InquiryRow | null>(null);
   const [formError, setFormError] = useState("");
@@ -99,6 +122,23 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [composeQuery]);
+
+  // ?openId=xxx → 해당 문의 상세 자동 오픈 (통합 검색에서 진입)
+  const openIdQuery = searchParams.get("openId");
+  useEffect(() => {
+    if (!openIdQuery) return;
+    const target = inquiries.find((i) => i.id === openIdQuery);
+    if (target && target.canViewBody) {
+      setSelected(target);
+      setShowReplyForm(false);
+      setReplyError("");
+      setDrawerMode("detail");
+    }
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("openId");
+    router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openIdQuery]);
 
   function openDetail(q: InquiryRow) {
     if (!q.canViewBody) return; // 비밀글이고 권한 없으면 열지 않음
@@ -182,19 +222,17 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
     <div className="flex items-start gap-6 min-h-0">
       {/* 메인 — 리스트 */}
       <div className="flex-1 min-w-0 space-y-5">
-        <div className="flex items-end justify-between">
-          <div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-baseline gap-2">
             <h1
-              className="text-2xl font-bold"
+              className="text-xl font-bold"
               style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
             >
-              문의게시판
+              헬프센터
             </h1>
-            <p className="text-sm mt-1" style={{ color: "#9ca3af" }}>
-              {isAdmin
-                ? "사용자 문의를 확인하고 답변해주세요."
-                : "U+초정밀측위 서비스에 대해서 자유롭게 문의하세요."}
-            </p>
+            <span className="text-sm" style={{ color: "#9ca3af" }}>
+              총 {inquiries.length}건
+            </span>
           </div>
           <button
             type="button"
@@ -206,13 +244,54 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
           </button>
         </div>
 
+        {/* 필터 */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative shrink-0" style={{ width: "220px" }}>
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+            </svg>
+            <input
+              type="text" placeholder="문의를 검색해주세요." defaultValue={q}
+              onChange={(e) => updateParams("q", e.target.value)}
+              className="w-full pl-8 pr-3 py-2 text-xs rounded-xl outline-none transition-all"
+              style={{ background: "#ffffff", color: "#1A1C1E", boxShadow: "0px 4px 12px rgba(25,28,29,0.06)", border: "1.5px solid transparent" }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "#E6007E")}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
+            />
+          </div>
+          <div className="w-px h-5 shrink-0" style={{ background: "#e8e9ea" }} />
+          <button
+            onClick={() => updateParams("cat", "")}
+            className="px-3.5 py-2 rounded-xl text-xs font-medium transition-all shrink-0"
+            style={{ background: catFilter === "" ? "#E6007E" : "#ffffff", color: catFilter === "" ? "#ffffff" : "#4F4F4F", boxShadow: "0px 4px 12px rgba(25,28,29,0.06)" }}
+          >
+            전체 ({inquiries.length})
+          </button>
+          {CATEGORIES.map((c) => (
+            <button
+              key={c}
+              onClick={() => updateParams("cat", c)}
+              className="px-3.5 py-2 rounded-xl text-xs font-medium transition-all shrink-0"
+              style={{ background: catFilter === c ? "#E6007E" : "#ffffff", color: catFilter === c ? "#ffffff" : "#4F4F4F", boxShadow: "0px 4px 12px rgba(25,28,29,0.06)" }}
+            >
+              {c}
+            </button>
+          ))}
+          {(q || catFilter) && (
+            <button onClick={() => router.replace(pathname, { scroll: false })} className="ml-auto text-xs underline hover:opacity-70 shrink-0" style={{ color: "#E6007E" }}>
+              초기화
+            </button>
+          )}
+        </div>
+        {(q || catFilter) && <p className="text-xs -mt-2" style={{ color: "#9ca3af" }}>검색 결과 {filteredInquiries.length}건</p>}
+
         <div
           className="rounded-2xl overflow-hidden"
           style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25, 28, 29, 0.06)" }}
         >
-          {inquiries.length === 0 ? (
+          {filteredInquiries.length === 0 ? (
             <p className="text-sm py-16 text-center" style={{ color: "#9ca3af" }}>
-              아직 등록된 문의가 없습니다.
+              {q || catFilter ? "검색 결과가 없습니다." : "아직 등록된 문의가 없습니다."}
             </p>
           ) : (
             <table className="w-full">
@@ -230,7 +309,7 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
                 </tr>
               </thead>
               <tbody>
-                {inquiries.map((q, i) => {
+                {filteredInquiries.map((q, i) => {
                   const cat = CATEGORY_BADGE[q.category] ?? CATEGORY_BADGE["기타"];
                   const st = STATUS_LABEL[q.status] ?? STATUS_LABEL.open;
                   const isSelected = selected?.id === q.id && drawerMode === "detail";
@@ -241,7 +320,7 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
                       onClick={() => openDetail(q)}
                       className={q.canViewBody ? "cursor-pointer transition-colors" : "transition-colors"}
                       style={{
-                        borderBottom: i === inquiries.length - 1 ? "none" : "1px solid #f3f4f5",
+                        borderBottom: i === filteredInquiries.length - 1 ? "none" : "1px solid #f3f4f5",
                         background: isSelected ? "rgba(230,0,126,0.03)" : "transparent",
                       }}
                     >

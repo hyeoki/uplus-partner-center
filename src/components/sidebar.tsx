@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import { useFavorites } from "@/hooks/useFavorites";
+import { useMobileMenu } from "@/hooks/useMobileMenu";
 
 type NavItem = {
   href: string;
@@ -21,7 +22,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/notice", label: "공지사항", icon: "M4 6h16M4 12h10M4 18h12", desc: "파트너 공지 확인" },
   { href: "/archive", label: "자료실", icon: "M4 4h16v16H4zM8 8h8M8 12h5", desc: "소개서·브로슈어 다운로드" },
   { href: "/customers", label: "사이트 관리", icon: "M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7zM8 13.5h.01M12 13.5h.01M16 13.5h.01", desc: "고객사·라이선스 관리" },
-  { href: "/inquiry", label: "문의게시판", icon: "M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z", desc: "베타 문의·의견" },
+  { href: "/inquiry", label: "헬프센터", icon: "M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z", desc: "문의·의견 보내기" },
   { href: "/system", label: "시스템 관리", icon: "M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z", desc: "카테고리·설정 관리", adminOnly: true },
 ];
 
@@ -36,6 +37,24 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const { isFavorite, toggle } = useFavorites();
+  const { mobileOpen, setMobileOpen } = useMobileMenu();
+  const [isMobile, setIsMobile] = useState(false);
+
+  // 페이지 이동 시 모바일 드로어 자동 닫기
+  useEffect(() => {
+    setMobileOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  // 모바일 viewport 감지
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   const filteredNav = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
   // 정렬: 홈 항상 최상단 → 즐겨찾기된 메뉴 → 그 외. 같은 그룹 내에선 NAV_ITEMS 원래 순서.
   const visibleNav = [
@@ -43,7 +62,7 @@ export default function Sidebar({
     ...filteredNav.filter((i) => i.href !== "/home" && isFavorite(i.href)),
     ...filteredNav.filter((i) => i.href !== "/home" && !isFavorite(i.href)),
   ];
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsedState, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   // localStorage에서 접힘 상태 복원 (hydration mismatch 방지)
@@ -52,6 +71,9 @@ export default function Sidebar({
     if (saved === "1") setCollapsed(true);
     setHydrated(true);
   }, []);
+
+  // 모바일에서는 collapsed 무시 (항상 풀 폭). 데스크탑에서만 collapsed 적용.
+  const collapsed = isMobile ? false : collapsedState;
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
@@ -62,15 +84,28 @@ export default function Sidebar({
   }
 
   return (
-    <aside
-      className="flex flex-col shrink-0 transition-[width] duration-200 ease-out"
-      style={{
-        background: "#f3f4f5",
-        width: collapsed ? 64 : 220,
-        // hydration 전에는 transition을 끔으로써 깜빡임 방지
-        transition: hydrated ? undefined : "none",
-      }}
-    >
+    <>
+      {/* 모바일 백드롭 */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden
+        />
+      )}
+      <aside
+        data-sidebar
+        className={
+          "flex flex-col shrink-0 transition-[width,transform] duration-200 ease-out " +
+          "fixed inset-y-0 left-0 z-50 md:static md:translate-x-0 " +
+          (mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0")
+        }
+        style={{
+          background: "#f3f4f5",
+          width: isMobile ? "100vw" : collapsed ? 64 : 220,
+          transition: hydrated ? undefined : "none",
+        }}
+      >
       {/* Brand + Toggle */}
       <div className={collapsed ? "px-3 pt-6 pb-4 mb-2 flex flex-col items-center gap-3" : "px-5 pt-6 pb-4 mb-2 flex items-start justify-between gap-2"}>
         {!collapsed && (
@@ -93,9 +128,9 @@ export default function Sidebar({
         )}
         <button
           type="button"
-          onClick={toggleCollapsed}
-          aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
-          title={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
+          onClick={isMobile ? () => setMobileOpen(false) : toggleCollapsed}
+          aria-label={isMobile ? "메뉴 닫기" : collapsed ? "사이드바 펼치기" : "사이드바 접기"}
+          title={isMobile ? "메뉴 닫기" : collapsed ? "사이드바 펼치기" : "사이드바 접기"}
           className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
           style={{ color: "#4F4F4F" }}
           onMouseEnter={(e) => {
@@ -213,14 +248,15 @@ export default function Sidebar({
         <WikiLink
           collapsed={collapsed}
           href="https://hni-gl.atlassian.net/wiki/spaces/HIEDGWK/overview"
-          label="GNSS 수신기 제품"
+          label="GNSS 수신기"
           shortLabel="GNSS"
         />
       </div>
 
       {/* Profile dropdown (sidebar bottom) */}
       <ProfileMenu profile={profile} collapsed={collapsed} />
-    </aside>
+      </aside>
+    </>
   );
 }
 

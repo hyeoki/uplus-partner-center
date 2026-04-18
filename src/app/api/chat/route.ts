@@ -106,10 +106,74 @@ function shorten(text: string | null | undefined, max = 180): string {
   return `${normalized.slice(0, max).trim()}...`;
 }
 
+/** 사용자별 일일 챗봇 사용 한도 (admin은 무제한) */
+const DAILY_CHAT_LIMIT = 3;
+
+/** 다음 자정(KST 기준) Date 반환 */
+function nextMidnight(): Date {
+  const d = new Date();
+  d.setHours(24, 0, 0, 0);
+  return d;
+}
+
+/** 한도 초과 시 보여줄 재치있는 안내 문구 풀 — 매번 랜덤으로 선택 */
+const RATE_LIMIT_MESSAGES = [
+  // 친근한 톤
+  "오늘 질문은 여기까지예요 🙊 내일 다시 만나요!",
+  "오늘 정말 많이 도와드렸네요. 챗봇도 잠깐 쉬어야 해요 ☕️",
+  "헉, 오늘은 더 이상 답변할 수 없어요. 내일 충전 완료! 🔋",
+  // 위트있게
+  "이만큼 궁금한 거 진짜 멋져요 👏 오늘은 여기까지, 내일 또 도와드릴게요!",
+  "질문 통이 가득 찼어요 🍱 내일 점심에 다시 와주세요",
+  "오늘 일은 여기까지! 챗봇도 퇴근시켜주세요 🌙",
+  // 살짝 능청
+  "혹시 저를 너무 좋아하시나요? 😅 내일 또 만나요!",
+  "잠깐, 잠깐! 머리가 슬슬 어지러워요... 🥴 내일 다시 도전해주세요",
+  "오늘 한도 다 쓰셨어요. 못 들은 척하기엔 양심이 찔려서요 😬",
+  // FAQ 유도
+  "오늘은 더 못 도와드려요 ㅠㅠ 자료실에 답이 있을지도 몰라요!",
+  "한도가 바닥났어요. 공지사항이나 자료실도 한 번 둘러봐주세요 📚",
+];
+
+function pickRateLimitMessage(): string {
+  return RATE_LIMIT_MESSAGES[Math.floor(Math.random() * RATE_LIMIT_MESSAGES.length)];
+}
+
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "로그인 후 이용할 수 있습니다." }, { status: 401 });
+  }
+
+  // ── 일일 사용량 체크 (admin은 제한 없음) ──
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, roleNames: true, chatCountToday: true, chatResetAt: true },
+  });
+  const isAdmin = me?.role === "admin";
+  if (!isAdmin && me) {
+    const now = new Date();
+    const needsReset = !me.chatResetAt || me.chatResetAt <= now;
+    const currentCount = needsReset ? 0 : me.chatCountToday;
+    if (currentCount >= DAILY_CHAT_LIMIT) {
+      return NextResponse.json(
+        {
+          error: pickRateLimitMessage(),
+          rateLimited: true,
+          used: currentCount,
+          limit: DAILY_CHAT_LIMIT,
+          resetAt: me.chatResetAt?.toISOString() ?? null,
+        },
+        { status: 429 },
+      );
+    }
+    // 카운트 +1, 리셋 필요 시 새 자정으로
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: needsReset
+        ? { chatCountToday: 1, chatResetAt: nextMidnight() }
+        : { chatCountToday: { increment: 1 } },
+    });
   }
 
   const chatbotSettings = await getChatbotSettings();
@@ -139,10 +203,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "질문 내용을 입력해주세요." }, { status: 400 });
   }
 
-  const me = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { roleNames: true, role: true },
-  });
   const myRoles = parseRoleNamesField(me?.roleNames);
   const roleFilter =
     myRoles.length > 0

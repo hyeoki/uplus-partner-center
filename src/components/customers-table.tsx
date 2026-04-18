@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const PRODUCT_BADGE = { bg: "rgba(26,28,30,0.06)", color: "#1A1C1E" };
 
@@ -66,6 +67,34 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
   const [typeFilter, setTypeFilter] = useState<string>("all"); // all/OFFICIAL/POC/DEV
   const [statusFilter, setStatusFilter] = useState<string>("active"); // all/active/expired
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const rowRefs = useRef<Map<string, HTMLTableRowElement | null>>(new Map());
+
+  // ?openId=xxx → 해당 사이트 row를 펼치고 스크롤 + 잠시 강조
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const openIdQuery = searchParams.get("openId");
+  useEffect(() => {
+    if (!openIdQuery) return;
+    const target = sites.find((s) => s.id === openIdQuery);
+    if (target) {
+      setExpanded((prev) => new Set(prev).add(target.id));
+      setHighlightId(target.id);
+      // 다음 paint에서 스크롤
+      requestAnimationFrame(() => {
+        rowRefs.current.get(target.id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      // 2.5초 후 highlight 제거
+      const t = setTimeout(() => setHighlightId(null), 2500);
+      // 쿼리 정리
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("openId");
+      router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openIdQuery]);
 
   const filteredSites = useMemo(() => {
     const qLower = q.trim().toLowerCase();
@@ -127,29 +156,24 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#9ca3af"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          >
-            <circle cx="11" cy="11" r="7" />
-            <path d="M21 21l-4.3-4.3" />
+      {/* 필터 */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative shrink-0" style={{ width: "240px" }}>
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
           </svg>
           <input
+            type="text"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="사이트명, 코드, 요금제 검색"
-            className="w-full h-9 pl-9 pr-3 rounded-lg text-sm outline-none"
-            style={{ background: "#ffffff", color: "#1A1C1E", border: "1px solid #e8e9ea" }}
+            placeholder="사이트를 검색해주세요."
+            className="w-full pl-8 pr-3 py-2 text-xs rounded-xl outline-none transition-all"
+            style={{ background: "#ffffff", color: "#1A1C1E", boxShadow: "0px 4px 12px rgba(25,28,29,0.06)", border: "1.5px solid transparent" }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "#E6007E")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
           />
         </div>
+        <div className="w-px h-5 shrink-0" style={{ background: "#e8e9ea" }} />
 
         <Select value={serverFilter} onChange={setServerFilter} label="서버">
           <option value="all">서버 전체</option>
@@ -180,16 +204,17 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
         <button
           type="button"
           onClick={toggleAll}
-          className="h-9 px-3 rounded-lg text-xs transition-colors"
-          style={{ background: "#ffffff", color: "#4F4F4F", border: "1px solid #e8e9ea" }}
+          className="px-3.5 py-2 rounded-xl text-xs font-medium transition-all shrink-0"
+          style={{ background: "#ffffff", color: "#4F4F4F", boxShadow: "0px 4px 12px rgba(25,28,29,0.06)" }}
         >
           {allExpanded ? "모두 접기" : "모두 펼치기"}
         </button>
-
-        <span className="ml-auto text-xs" style={{ color: "#9ca3af" }}>
-          {filteredSites.length} / {sites.length}건
-        </span>
       </div>
+      {(q || serverFilter !== "all" || typeFilter !== "all" || licenseFilter !== "all" || statusFilter !== "active") && (
+        <p className="text-xs -mt-2" style={{ color: "#9ca3af" }}>
+          검색 결과 {filteredSites.length}건
+        </p>
+      )}
 
       {/* Table */}
       <div
@@ -228,12 +253,18 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
                   .filter((l) => l.licenseStatus === true)
                   .reduce((sum, l) => sum + (l.sessionCount ?? 0), 0);
 
+                const isHighlighted = highlightId === s.id;
                 return (
                   <FragmentRow key={s.id}>
                     <tr
+                      ref={(el) => { rowRefs.current.set(s.id, el); }}
                       onClick={() => toggle(s.id)}
                       className="cursor-pointer transition-colors hover:bg-[#fafafa]"
-                      style={{ borderBottom: isOpen ? "none" : "1px solid #f3f4f5" }}
+                      style={{
+                        borderBottom: isOpen ? "none" : "1px solid #f3f4f5",
+                        background: isHighlighted ? "rgba(230,0,126,0.06)" : undefined,
+                        transition: "background-color 0.5s ease",
+                      }}
                     >
                       <Td>
                         <div className="flex items-center gap-2">
@@ -531,8 +562,8 @@ function Select({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label={label}
-      className="h-9 px-3 rounded-lg text-sm outline-none"
-      style={{ background: "#ffffff", color: "#1A1C1E", border: "1px solid #e8e9ea" }}
+      className="px-3 py-2 rounded-xl text-xs font-medium outline-none cursor-pointer"
+      style={{ background: "#ffffff", color: "#4F4F4F", boxShadow: "0px 4px 12px rgba(25,28,29,0.06)" }}
     >
       {children}
     </select>

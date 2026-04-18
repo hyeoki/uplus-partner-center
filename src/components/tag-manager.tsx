@@ -2,33 +2,33 @@
 
 import { useEffect, useState, useTransition } from "react";
 import {
-  createCategory,
-  deleteCategory,
-  renameCategory,
-  reorderCategories,
-  toggleCategoryActive,
-  updateCategoryColor,
+  createNoticeTag,
+  deleteNoticeTag,
+  renameNoticeTag,
+  reorderNoticeTags,
+  toggleNoticeTagActive,
+  updateNoticeTagColor,
 } from "@/app/(dashboard)/system/actions";
 import { CATEGORY_COLORS, getCategoryColor } from "@/lib/category-colors";
 
-type CategoryRow = {
+type TagRow = {
   id: number;
   name: string;
   colorId: string;
   active: boolean;
-  archiveCount: number;
+  noticeCount: number;
 };
 
-export default function CategoryManager({ categories }: { categories: CategoryRow[] }) {
-  // 드래그 정렬 — props 변경 시 초기화
-  const [orderedIds, setOrderedIds] = useState<number[]>(() => categories.map((c) => c.id));
+export default function TagManager({ tags }: { tags: TagRow[] }) {
+  // 드래그 정렬
+  const [orderedIds, setOrderedIds] = useState<number[]>(() => tags.map((t) => t.id));
   const [draggingId, setDraggingId] = useState<number | null>(null);
   useEffect(() => {
-    setOrderedIds(categories.map((c) => c.id));
-  }, [categories]);
-  const orderedCategories = orderedIds
-    .map((id) => categories.find((c) => c.id === id))
-    .filter((c): c is CategoryRow => !!c);
+    setOrderedIds(tags.map((t) => t.id));
+  }, [tags]);
+  const orderedTags = orderedIds
+    .map((id) => tags.find((t) => t.id === id))
+    .filter((t): t is TagRow => !!t);
 
   function onDragStart(e: React.DragEvent, id: number) {
     setDraggingId(id);
@@ -49,11 +49,10 @@ export default function CategoryManager({ categories }: { categories: CategoryRo
   }
   function onDragEnd() {
     setDraggingId(null);
-    // 서버에 새 순서 저장 (변경된 경우만)
-    const original = categories.map((c) => c.id).join(",");
+    const original = tags.map((t) => t.id).join(",");
     const next = orderedIds.join(",");
     if (original !== next) {
-      void reorderCategories(orderedIds);
+      void reorderNoticeTags(orderedIds);
     }
   }
 
@@ -85,26 +84,15 @@ export default function CategoryManager({ categories }: { categories: CategoryRo
     fd.set("colorId", newColorId);
     setCreateError("");
     startTransition(async () => {
-      const result = await createCategory(null, fd);
+      const result = await createNoticeTag(null, fd);
       if (result?.error) setCreateError(result.error);
       else cancelAdd();
     });
   }
-  function changeColor(id: number, colorId: string) {
-    setRowError(null);
-    setColorPickerId(null);
-    startTransition(async () => {
-      try {
-        await updateCategoryColor(id, colorId);
-      } catch (e) {
-        setRowError({ id, msg: (e as Error).message });
-      }
-    });
-  }
 
-  function startEdit(cat: CategoryRow) {
-    setEditingId(cat.id);
-    setEditName(cat.name);
+  function startEdit(tag: TagRow) {
+    setEditingId(tag.id);
+    setEditName(tag.name);
     setRowError(null);
   }
   function submitEdit(id: number) {
@@ -112,8 +100,19 @@ export default function CategoryManager({ categories }: { categories: CategoryRo
     setRowError(null);
     startTransition(async () => {
       try {
-        await renameCategory(id, name);
+        await renameNoticeTag(id, name);
         setEditingId(null);
+      } catch (e) {
+        setRowError({ id, msg: (e as Error).message });
+      }
+    });
+  }
+  function changeColor(id: number, colorId: string) {
+    setRowError(null);
+    setColorPickerId(null);
+    startTransition(async () => {
+      try {
+        await updateNoticeTagColor(id, colorId);
       } catch (e) {
         setRowError({ id, msg: (e as Error).message });
       }
@@ -123,20 +122,20 @@ export default function CategoryManager({ categories }: { categories: CategoryRo
     setRowError(null);
     startTransition(async () => {
       try {
-        await toggleCategoryActive(id);
+        await toggleNoticeTagActive(id);
       } catch (e) {
         setRowError({ id, msg: (e as Error).message });
       }
     });
   }
-  function handleDelete(cat: CategoryRow) {
-    if (!confirm(`"${cat.name}" 카테고리를 삭제할까요?`)) return;
+  function handleDelete(tag: TagRow) {
+    if (!confirm(`"${tag.name}" 태그를 삭제할까요?`)) return;
     setRowError(null);
     startTransition(async () => {
       try {
-        await deleteCategory(cat.id);
+        await deleteNoticeTag(tag.id);
       } catch (e) {
-        setRowError({ id: cat.id, msg: (e as Error).message });
+        setRowError({ id: tag.id, msg: (e as Error).message });
       }
     });
   }
@@ -151,7 +150,7 @@ export default function CategoryManager({ categories }: { categories: CategoryRo
           className="text-sm font-semibold"
           style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
         >
-          자료실 카테고리
+          공지사항 태그
         </h2>
         {!adding && (
           <button
@@ -160,7 +159,7 @@ export default function CategoryManager({ categories }: { categories: CategoryRo
             className="h-9 px-4 rounded-xl text-xs font-semibold transition-opacity hover:opacity-80"
             style={{ background: "#E6007E", color: "#ffffff", fontFamily: "var(--font-display)" }}
           >
-            + 카테고리 추가
+            + 태그 추가
           </button>
         )}
       </div>
@@ -177,8 +176,8 @@ export default function CategoryManager({ categories }: { categories: CategoryRo
               autoFocus
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="새 카테고리명"
-              maxLength={30}
+              placeholder="새 태그명"
+              maxLength={20}
               className="flex-1 h-9 px-3 text-sm bg-white rounded-lg outline-none"
               style={{ border: "1px solid #e8e9ea" }}
             />
@@ -223,20 +222,21 @@ export default function CategoryManager({ categories }: { categories: CategoryRo
       )}
 
       <div className="space-y-2">
-        {orderedCategories.length === 0 && !adding ? (
+        {orderedTags.length === 0 && !adding ? (
           <p className="text-sm py-8 text-center" style={{ color: "#9ca3af" }}>
-            등록된 카테고리가 없습니다. 우측 상단 &quot;카테고리 추가&quot; 버튼으로 시작해보세요.
+            등록된 태그가 없습니다.
           </p>
         ) : (
-          orderedCategories.map((cat) => {
-            const isEditing = editingId === cat.id;
-            const isDragging = draggingId === cat.id;
+          orderedTags.map((tag) => {
+            const isEditing = editingId === tag.id;
+            const isDragging = draggingId === tag.id;
+            const c = getCategoryColor(tag.colorId);
             return (
               <div
-                key={cat.id}
+                key={tag.id}
                 draggable={!isEditing}
-                onDragStart={(e) => onDragStart(e, cat.id)}
-                onDragOver={(e) => onDragOver(e, cat.id)}
+                onDragStart={(e) => onDragStart(e, tag.id)}
+                onDragOver={(e) => onDragOver(e, tag.id)}
                 onDragEnd={onDragEnd}
                 style={{ opacity: isDragging ? 0.4 : 1, transition: "opacity 0.15s" }}
               >
@@ -253,30 +253,30 @@ export default function CategoryManager({ categories }: { categories: CategoryRo
                     ⠿
                   </span>
 
-                  {/* 컬러 스왓치 — 클릭 시 색상 변경 픽커 */}
+                  {/* 컬러 스왓치 */}
                   <div className="relative shrink-0">
                     <button
                       type="button"
-                      onClick={() => setColorPickerId(colorPickerId === cat.id ? null : cat.id)}
+                      onClick={() => setColorPickerId(colorPickerId === tag.id ? null : tag.id)}
                       title="색상 변경"
                       className="w-4 h-4 rounded-full transition-transform hover:scale-110"
-                      style={{ background: getCategoryColor(cat.colorId).swatch }}
+                      style={{ background: c.swatch }}
                     />
-                    {colorPickerId === cat.id && (
+                    {colorPickerId === tag.id && (
                       <div
                         className="absolute z-20 top-6 left-0 flex items-center gap-1.5 p-2 rounded-lg shadow-lg bg-white"
                         style={{ border: "1px solid #e8e9ea" }}
                       >
-                        {CATEGORY_COLORS.map((c) => (
+                        {CATEGORY_COLORS.map((cc) => (
                           <button
-                            key={c.id}
+                            key={cc.id}
                             type="button"
-                            onClick={() => changeColor(cat.id, c.id)}
-                            title={c.label}
+                            onClick={() => changeColor(tag.id, cc.id)}
+                            title={cc.label}
                             className="w-5 h-5 rounded-full transition-transform hover:scale-110"
                             style={{
-                              background: c.swatch,
-                              outline: cat.colorId === c.id ? `2px solid ${c.swatch}` : "none",
+                              background: cc.swatch,
+                              outline: tag.colorId === cc.id ? `2px solid ${cc.swatch}` : "none",
                               outlineOffset: "2px",
                             }}
                           />
@@ -284,52 +284,56 @@ export default function CategoryManager({ categories }: { categories: CategoryRo
                       </div>
                     )}
                   </div>
+
                   {isEditing ? (
                     <input
                       autoFocus
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") submitEdit(cat.id);
+                        if (e.key === "Enter") submitEdit(tag.id);
                         if (e.key === "Escape") setEditingId(null);
                       }}
-                      maxLength={30}
+                      maxLength={20}
                       className="flex-1 h-8 px-2 text-sm bg-white rounded-md outline-none"
                       style={{ border: "1px solid #e8e9ea" }}
                     />
                   ) : (
                     <span
-                      className="text-sm font-medium flex-1"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium flex-1"
                       style={{ color: "#1A1C1E" }}
                     >
-                      {cat.name}
+                      <span
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium"
+                        style={{ background: c.bg, color: c.color }}
+                      >
+                        {tag.name}
+                      </span>
                     </span>
                   )}
 
                   <span className="text-xs" style={{ color: "#9ca3af" }}>
-                    {cat.archiveCount}건
+                    {tag.noticeCount}건
                   </span>
 
-                  {/* 활성 토글 */}
                   <button
                     type="button"
-                    onClick={() => handleToggle(cat.id)}
+                    onClick={() => handleToggle(tag.id)}
                     disabled={isPending}
                     className="text-xs px-2.5 py-1 rounded-lg font-medium transition-opacity hover:opacity-80 disabled:opacity-60"
                     style={{
-                      background: cat.active ? "rgba(230,0,126,0.08)" : "#e8e9ea",
-                      color: cat.active ? "#E6007E" : "#9ca3af",
+                      background: tag.active ? "rgba(230,0,126,0.08)" : "#e8e9ea",
+                      color: tag.active ? "#E6007E" : "#9ca3af",
                     }}
                   >
-                    {cat.active ? "활성" : "비활성"}
+                    {tag.active ? "활성" : "비활성"}
                   </button>
 
-                  {/* 액션 버튼들 */}
                   {isEditing ? (
                     <>
                       <button
                         type="button"
-                        onClick={() => submitEdit(cat.id)}
+                        onClick={() => submitEdit(tag.id)}
                         disabled={isPending}
                         className="h-7 px-3 rounded-md text-xs font-semibold transition-opacity hover:opacity-80 disabled:opacity-60"
                         style={{ background: "#E6007E", color: "#ffffff" }}
@@ -349,7 +353,7 @@ export default function CategoryManager({ categories }: { categories: CategoryRo
                     <>
                       <button
                         type="button"
-                        onClick={() => startEdit(cat)}
+                        onClick={() => startEdit(tag)}
                         title="이름 수정"
                         className="w-7 h-7 flex items-center justify-center rounded-md transition-colors hover:bg-gray-200"
                         style={{ color: "#6b7280" }}
@@ -361,7 +365,7 @@ export default function CategoryManager({ categories }: { categories: CategoryRo
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(cat)}
+                        onClick={() => handleDelete(tag)}
                         disabled={isPending}
                         title="삭제"
                         className="w-7 h-7 flex items-center justify-center rounded-md transition-colors hover:bg-gray-200 disabled:opacity-60"
@@ -376,7 +380,7 @@ export default function CategoryManager({ categories }: { categories: CategoryRo
                     </>
                   )}
                 </div>
-                {rowError?.id === cat.id && (
+                {rowError?.id === tag.id && (
                   <p className="text-xs mt-1.5 px-4" style={{ color: "#E6007E" }}>
                     {rowError.msg}
                   </p>

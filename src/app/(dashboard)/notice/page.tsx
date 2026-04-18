@@ -32,20 +32,32 @@ export default async function NoticePage() {
         }
       : { OR: [{ visibleRoles: null }, { visibleRoles: "" }] };
 
-  const notices = await prisma.notice.findMany({
-    where: roleFilter,
-    orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
-    select: {
-      id: true, title: true, content: true,
-      tag: true, pinned: true, visibleRoles: true,
-      authorId: true, createdAt: true,
-      author: { select: { name: true } },
-    },
-  });
+  const [notices, tags] = await Promise.all([
+    prisma.notice.findMany({
+      where: roleFilter,
+      orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
+      select: {
+        id: true, title: true, content: true,
+        tag: true, pinned: true, visibleRoles: true,
+        authorId: true, createdAt: true,
+        author: { select: { name: true, photoUrl: true } },
+      },
+    }),
+    prisma.noticeTag.findMany({
+      where: { active: true },
+      orderBy: { sortOrder: "asc" },
+      select: { name: true, colorId: true },
+    }),
+  ]);
 
   return (
     <Suspense fallback={null}>
-      <NoticeShell notices={notices} isAdmin={isAdmin} currentUserId={session?.user?.id ?? null} />
+      <NoticeShell
+        notices={notices}
+        isAdmin={isAdmin}
+        currentUserId={session?.user?.id ?? null}
+        tags={tags}
+      />
     </Suspense>
   );
 }

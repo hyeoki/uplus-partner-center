@@ -30,6 +30,11 @@ model User {
   // 로그인 시점에 NULL로 초기화 → background sync 끝나면 갱신.
   // null이면 첫 로그인 직후 → UI에서 스켈레톤 + 자동 새로고침으로 처리.
   lastSyncedAt           DateTime?
+  // 챗봇 일일 사용량 제한 — chatResetAt 지나면 0으로 자동 리셋
+  chatCountToday         Int       @default(0)
+  chatResetAt            DateTime?
+  // 즐겨찾기 메뉴 (CSV ",/notice,/archive,")
+  favoriteMenus          String?
 
   notices    Notice[]
   comments   Comment[]
@@ -57,6 +62,18 @@ model Inquiry {
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
+}
+
+/**
+ * 공지사항 태그 — 시스템 관리에서 admin이 추가/수정/색상 변경.
+ * 기본 시드: 일반/중요/시스템/정책. Notice.tag는 이 name을 String으로 참조.
+ */
+model NoticeTag {
+  id        Int     @id @default(autoincrement())
+  name      String  @unique
+  colorId   String  @default("gray")
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
 }
 
 /**

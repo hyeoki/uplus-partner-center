@@ -38,6 +38,16 @@ export default function ChatbotWidget() {
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, isPending, open]);
 
+  // ESC 키로 챗봇 닫기
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     inputRef.current?.focus();
@@ -62,6 +72,7 @@ export default function ChatbotWidget() {
     setMessages(nextMessages);
     setInput("");
     setError(null);
+    if (inputRef.current) inputRef.current.style.height = "36px";
 
     startTransition(async () => {
       try {
@@ -123,7 +134,10 @@ export default function ChatbotWidget() {
   return (
     <>
       {open && (
-        <div className="fixed inset-0 z-40 bg-black/10 md:bg-transparent" onClick={() => setOpen(false)} />
+        <div
+          className="fixed inset-0 z-40 bg-black/10 md:bg-transparent animate-[chatbotBackdrop_0.18s_ease-out]"
+          onClick={() => setOpen(false)}
+        />
       )}
 
       <div className="fixed right-4 bottom-4 z-50 md:right-8 md:bottom-8">
@@ -137,6 +151,8 @@ export default function ChatbotWidget() {
               backdropFilter: "blur(20px)",
               WebkitBackdropFilter: "blur(20px)",
               maxHeight: "min(75vh, 720px)",
+              animation: "chatbotPopIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1)",
+              transformOrigin: "bottom right",
             }}
             onClick={(event) => event.stopPropagation()}
           >
@@ -234,16 +250,23 @@ export default function ChatbotWidget() {
 
             <form onSubmit={handleSubmit} className="border-t px-4 py-4" style={{ borderColor: "#edeeef" }}>
               <div
-                className="rounded-3xl border px-3 py-3"
+                className="flex items-end gap-2 rounded-3xl border pl-4 pr-2 py-1.5"
                 style={{ borderColor: "#e8e9ea", background: "#ffffff" }}
               >
                 <textarea
                   ref={inputRef}
                   value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  rows={2}
+                  onChange={(event) => {
+                    setInput(event.target.value);
+                    // 자동 높이 조절 — scrollHeight만큼 늘어나다가 max에서 스크롤
+                    const el = event.currentTarget;
+                    el.style.height = "auto";
+                    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+                  }}
+                  rows={1}
                   placeholder="궁금한 점을 입력해보세요"
-                  className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-[#9ca3af]"
+                  className="flex-1 min-w-0 resize-none bg-transparent text-sm outline-none placeholder:text-[#9ca3af] leading-5 py-2 max-h-[140px]"
+                  style={{ height: "36px" }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
@@ -251,28 +274,24 @@ export default function ChatbotWidget() {
                     }
                   }}
                 />
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <span className="text-[11px]" style={{ color: error ? "#E6007E" : "#9ca3af" }}>
-                    {error ?? "Shift+Enter로 줄바꿈할 수 있습니다."}
-                  </span>
-                  <button
-                    type="submit"
-                    disabled={isPending || !input.trim()}
-                    className="inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-                    style={{ background: "#E6007E", color: "#ffffff" }}
-                  >
-                    전송
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  disabled={isPending || !input.trim()}
+                  className="shrink-0 inline-flex h-9 items-center justify-center rounded-full px-4 text-sm font-semibold whitespace-nowrap transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{ background: "#E6007E", color: "#ffffff" }}
+                >
+                  전송
+                </button>
               </div>
             </form>
           </div>
         )}
 
+        {!open && (
         <button
           type="button"
-          onClick={() => setOpen((prev) => !prev)}
-          className="flex h-15 w-15 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-[1.03]"
+          onClick={() => setOpen(true)}
+          className="flex h-15 w-15 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-[1.03] animate-[chatbotFabIn_0.2s_ease-out]"
           style={{
             width: 60,
             height: 60,
@@ -280,7 +299,7 @@ export default function ChatbotWidget() {
             color: "#ffffff",
             boxShadow: "0px 16px 32px rgba(230, 0, 126, 0.28)",
           }}
-          aria-label={open ? "챗봇 닫기" : "챗봇 열기"}
+          aria-label="챗봇 열기"
         >
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
             <path d="M7 10h10M7 14h6" strokeLinecap="round" />
@@ -290,6 +309,7 @@ export default function ChatbotWidget() {
             />
           </svg>
         </button>
+        )}
       </div>
     </>
   );

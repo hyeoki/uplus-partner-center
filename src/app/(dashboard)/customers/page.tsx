@@ -77,21 +77,18 @@ export default async function CustomersPage({ searchParams }: Props) {
     <div className="space-y-6 w-full">
       <SyncStatusPoller syncing={syncing} />
       {/* Header */}
-      <div className="flex items-end justify-between">
-        <div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-baseline gap-2">
           <h1
-            className="text-2xl font-bold"
+            className="text-xl font-bold"
             style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
           >
             사이트 관리
           </h1>
-          <p className="text-sm mt-1" style={{ color: "#9ca3af" }}>
-            고객사 사이트 및 라이선스 현황을 확인해보세요.
-          </p>
+          <span className="text-sm" style={{ color: "#9ca3af" }}>
+            사이트 {sites.length}건 · 라이선스 {totalLicenses}건
+          </span>
         </div>
-        <span className="text-xs" style={{ color: "#9ca3af" }}>
-          사이트 {sites.length}건 · 라이선스 {totalLicenses}건
-        </span>
       </div>
 
       {filter === "poc-expiring" && (

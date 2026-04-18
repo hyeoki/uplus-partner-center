@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 import SyncStatusPoller from "@/components/sync-status-poller";
+import { getCategoryColor } from "@/lib/category-colors";
 
 export default async function HomePage() {
   const session = await auth();
@@ -72,11 +73,21 @@ export default async function HomePage() {
     return pool[Math.floor(Math.random() * pool.length)];
   })();
 
-  const latestNotices = await prisma.notice.findMany({
-    take: 5,
-    orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
-    select: { id: true, title: true, tag: true, pinned: true, createdAt: true },
-  });
+  const [latestNotices, latestArchives] = await Promise.all([
+    prisma.notice.findMany({
+      take: 5,
+      orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
+      select: { id: true, title: true, tag: true, pinned: true, createdAt: true },
+    }),
+    prisma.archive.findMany({
+      take: 5,
+      orderBy: [{ createdAt: "desc" }],
+      select: {
+        id: true, title: true, ext: true, createdAt: true,
+        category: { select: { name: true, colorId: true } },
+      },
+    }),
+  ]);
 
   const TAG_COLOR: Record<string, { bg: string; color: string }> = {
     중요: { bg: "rgba(230,0,126,0.08)", color: "#E6007E" },
@@ -265,7 +276,7 @@ export default async function HomePage() {
               className="text-sm font-semibold"
               style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
             >
-              PoC 마감 임박 고객사
+              PoC 마감 임박
             </h3>
             <p className="text-xs mt-0.5" style={{ color: "#9ca3af" }}>
               2주 이내 종료되는 PoC 라이선스에요. 영업 기회를 놓치지 마세요 🔥
@@ -309,7 +320,7 @@ export default async function HomePage() {
                 <Link
                   key={l.id}
                   href="/customers"
-                  className="flex items-center gap-4 px-4 py-3 rounded-xl transition-colors hover:bg-[#f8f9fa]"
+                  className="flex items-center gap-3 md:gap-4 px-3 md:px-4 py-3 rounded-xl transition-colors hover:bg-[#f8f9fa]"
                   style={{ background: "#fafbfc" }}
                 >
                   {/* D-day 뱃지 */}
@@ -329,7 +340,7 @@ export default async function HomePage() {
                   </div>
                   {/* 사이트 정보 */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span
                         className="text-sm font-medium truncate"
                         style={{ color: "#1A1C1E" }}
@@ -345,14 +356,20 @@ export default async function HomePage() {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 mt-1 text-xs" style={{ color: "#9ca3af" }}>
+                    <div className="flex items-center gap-1.5 mt-1 text-xs flex-wrap" style={{ color: "#9ca3af" }}>
                       {l.licenseName && <span>{l.licenseName}</span>}
                       {l.plan && <span>· {l.plan}</span>}
                       {typeof l.sessionCount === "number" && <span>· 동시접속 {l.sessionCount}</span>}
+                      {/* 모바일: 만료일을 인라인 표시 */}
+                      {end && (
+                        <span className="md:hidden">
+                          · 만료 {end.getFullYear()}.{String(end.getMonth() + 1).padStart(2, "0")}.{String(end.getDate()).padStart(2, "0")}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  {/* 만료일 */}
-                  <div className="text-right shrink-0">
+                  {/* 만료일 — 데스크탑만 우측 별도 컬럼 */}
+                  <div className="hidden md:block text-right shrink-0">
                     <div className="text-xs" style={{ color: "#9ca3af" }}>만료일</div>
                     <div className="text-sm font-medium mt-0.5" style={{ color: "#1A1C1E" }}>
                       {end
@@ -410,11 +427,11 @@ export default async function HomePage() {
               return (
                 <div
                   key={site.id}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                  className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 px-3 py-2.5 rounded-xl"
                   style={{ background: "transparent" }}
                 >
                   {/* 사이트명 + 서버 라벨 + 사이트 주소 */}
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 w-full">
                     <div
                       className="text-sm font-medium truncate flex items-center gap-1.5 min-w-0"
                       style={{ color: "#1A1C1E" }}
@@ -466,7 +483,7 @@ export default async function HomePage() {
                   </div>
 
                   {/* 구분 / 라이선스 / 요금제 / 동시접속 / 제품 */}
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1.5 flex-wrap md:shrink-0">
                     {lic?.siteLicenseType && TYPE_COLOR[lic.siteLicenseType] && (
                       <span
                         className="text-[10px] px-2 py-0.5 rounded-md font-semibold"
@@ -535,14 +552,14 @@ export default async function HomePage() {
               className="text-sm font-semibold"
               style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
             >
-              최신 공지사항
+              공지사항
             </h3>
             <Link
               href="/notice"
               className="text-xs transition-colors hover:text-[#E6007E]"
               style={{ color: "#9ca3af" }}
             >
-              전체보기 &rsaquo;
+              더보기 &rsaquo;
             </Link>
           </div>
 
@@ -555,7 +572,7 @@ export default async function HomePage() {
                 return (
                   <Link
                     key={notice.id}
-                    href="/notice"
+                    href={`/notice?openId=${notice.id}`}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors group"
                     style={{ background: "transparent" }}
                   >
@@ -585,6 +602,70 @@ export default async function HomePage() {
               })}
             </div>
           )}
+      </div>
+
+      {/* Latest archives */}
+      <div
+        className="rounded-2xl p-7"
+        style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25, 28, 29, 0.06)" }}
+      >
+        <div className="flex justify-between items-center mb-5">
+          <h3
+            className="text-sm font-semibold"
+            style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
+          >
+            자료실
+          </h3>
+          <Link
+            href="/archive"
+            className="text-xs transition-colors hover:text-[#E6007E]"
+            style={{ color: "#9ca3af" }}
+          >
+            더보기 &rsaquo;
+          </Link>
+        </div>
+
+        {latestArchives.length === 0 ? (
+          <p className="text-sm" style={{ color: "#9ca3af" }}>등록된 자료가 없습니다.</p>
+        ) : (
+          <div className="space-y-1">
+            {latestArchives.map((archive) => {
+              const cat = getCategoryColor(archive.category.colorId);
+              return (
+                <Link
+                  key={archive.id}
+                  href={`/archive?openId=${archive.id}`}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors group"
+                  style={{ background: "transparent" }}
+                >
+                  <span
+                    className="text-[10px] px-2 py-0.5 rounded-md font-medium shrink-0"
+                    style={{ background: cat.bg, color: cat.color }}
+                  >
+                    {archive.category.name}
+                  </span>
+                  <span
+                    className="text-sm flex-1 truncate font-medium"
+                    style={{ color: "#1A1C1E" }}
+                  >
+                    {archive.title}
+                  </span>
+                  {archive.ext && (
+                    <span
+                      className="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase shrink-0"
+                      style={{ background: "#f3f4f5", color: "#6b7280" }}
+                    >
+                      {archive.ext}
+                    </span>
+                  )}
+                  <span className="text-[11px] shrink-0" style={{ color: "#9ca3af" }}>
+                    {archive.createdAt.toLocaleDateString("ko-KR", { month: "2-digit", day: "2-digit" })}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

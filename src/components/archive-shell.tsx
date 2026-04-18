@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useTransition, useCallback } from "react";
+import { useEffect, useState, useRef, useTransition, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { createArchive, deleteArchive, incrementDownload, updateArchive } from "@/app/(dashboard)/archive/actions";
 import RoleAccessSelector from "@/components/role-access-selector";
@@ -62,6 +62,21 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
     setSelected(archive);
     setDrawerMode("detail");
   }
+
+  // ?openId=N → 해당 자료 상세 자동 오픈 (통합 검색에서 진입)
+  const openIdQuery = searchParams.get("openId");
+  useEffect(() => {
+    if (!openIdQuery) return;
+    const target = allArchives.find((a) => String(a.id) === openIdQuery);
+    if (target) {
+      setSelected(target);
+      setDrawerMode("detail");
+    }
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("openId");
+    router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openIdQuery]);
 
   function openRegister() {
     setSelected(null);
@@ -145,8 +160,10 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
         {/* 헤더 */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold" style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}>자료실</h1>
-            <p className="text-sm mt-0.5" style={{ color: "#9ca3af" }}>총 {allArchives.length}건</p>
+            <div className="flex items-baseline gap-2">
+              <h1 className="text-xl font-bold" style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}>자료실</h1>
+              <span className="text-sm" style={{ color: "#9ca3af" }}>총 {allArchives.length}건</span>
+            </div>
           </div>
           {isAdmin && (
             <button onClick={openRegister} className="h-9 px-5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80" style={{ background: "#E6007E", color: "#ffffff", fontFamily: "var(--font-display)" }}>
@@ -161,7 +178,7 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={isPendingFilter ? "#E6007E" : "#9ca3af"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
             </svg>
-            <input type="text" placeholder="자료명 검색..." defaultValue={q} onChange={(e) => updateParams("q", e.target.value)} className="w-full pl-8 pr-3 py-2 text-xs rounded-xl outline-none transition-all" style={{ background: "#ffffff", color: "#1A1C1E", boxShadow: "0px 4px 12px rgba(25,28,29,0.06)", border: "1.5px solid transparent" }} onFocus={(e) => (e.currentTarget.style.borderColor = "#E6007E")} onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")} />
+            <input type="text" placeholder="자료를 검색해주세요." defaultValue={q} onChange={(e) => updateParams("q", e.target.value)} className="w-full pl-8 pr-3 py-2 text-xs rounded-xl outline-none transition-all" style={{ background: "#ffffff", color: "#1A1C1E", boxShadow: "0px 4px 12px rgba(25,28,29,0.06)", border: "1.5px solid transparent" }} onFocus={(e) => (e.currentTarget.style.borderColor = "#E6007E")} onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")} />
           </div>
           <div className="w-px h-5 shrink-0" style={{ background: "#e8e9ea" }} />
           <button onClick={() => updateParams("category", "")} className="px-3.5 py-2 rounded-xl text-xs font-medium transition-all shrink-0" style={{ background: category === "" ? "#E6007E" : "#ffffff", color: category === "" ? "#ffffff" : "#4F4F4F", boxShadow: "0px 4px 12px rgba(25,28,29,0.06)" }}>

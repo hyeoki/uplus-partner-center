@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useRef, useTransition } from "react";
+import { useEffect, useState, useRef, useTransition, useMemo } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { createNotice, deleteNotice, updateNotice } from "@/app/(dashboard)/notice/actions";
 import RoleAccessSelector from "@/components/role-access-selector";
+import { getCategoryColor } from "@/lib/category-colors";
 
 interface Notice {
   id: number;
@@ -13,32 +15,86 @@ interface Notice {
   visibleRoles?: string | null;
   authorId?: string;
   createdAt: Date;
-  author: { name: string };
+  author: { name: string; photoUrl?: string | null };
+}
+
+interface TagDef {
+  name: string;
+  colorId: string;
 }
 
 interface Props {
   notices: Notice[];
   isAdmin?: boolean;
   currentUserId?: string | null;
+  tags: TagDef[];
 }
 
-const TAG_COLOR: Record<string, { bg: string; color: string }> = {
-  중요: { bg: "rgba(230,0,126,0.08)", color: "#E6007E" },
-  시스템: { bg: "rgba(26,28,30,0.06)", color: "#1A1C1E" },
-  정책: { bg: "rgba(79,79,79,0.08)", color: "#4F4F4F" },
-  일반: { bg: "#e8e9ea", color: "#4F4F4F" },
-};
-
-const TAGS = ["일반", "중요", "시스템", "정책"];
+function tagBg(colorId: string) {
+  return getCategoryColor(colorId);
+}
 
 type DrawerMode = "closed" | "register" | "edit" | "detail";
 
-export default function NoticeShell({ notices, isAdmin = false, currentUserId = null }: Props) {
+export default function NoticeShell({ notices, isAdmin = false, currentUserId = null, tags }: Props) {
+  // ── 검색/필터 (URL params) ──
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const q = searchParams.get("q") ?? "";
+  const tagFilter = searchParams.get("tag") ?? "";
+  const [isPendingFilter, startFilterTransition] = useTransition();
+
+  function updateParams(key: string, value: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) params.set(key, value);
+    else params.delete(key);
+    startFilterTransition(() => {
+      router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
+    });
+  }
+
+  const filteredNotices = useMemo(() => {
+    return notices.filter((n) => {
+      const matchQ = q ? (n.title.toLowerCase().includes(q.toLowerCase()) || n.content.toLowerCase().includes(q.toLowerCase())) : true;
+      const matchTag = tagFilter ? n.tag === tagFilter : true;
+      return matchQ && matchTag;
+    });
+  }, [notices, q, tagFilter]);
+
+  // ?openId=N → 해당 공지 상세 자동 오픈
+  const openIdQuery = searchParams.get("openId");
+  useEffect(() => {
+    if (!openIdQuery) return;
+    const target = notices.find((n) => String(n.id) === openIdQuery);
+    if (target) {
+      setSelected(target);
+      setDrawerMode("detail");
+    }
+    // 쿼리 정리
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("openId");
+    router.replace(`${pathname}${params.toString() ? `?${params.toString()}` : ""}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openIdQuery]);
+
+  // 태그명 → 색상 lookup map
+  const tagColorByName = new Map<string, { bg: string; color: string }>();
+  tags.forEach((t) => tagColorByName.set(t.name, tagBg(t.colorId)));
+  const FALLBACK_COLOR = { bg: "#e8e9ea", color: "#4F4F4F" };
+  function getTagColor(name: string) {
+    return tagColorByName.get(name) ?? FALLBACK_COLOR;
+  }
+  const TAGS_LIST = tags.map((t) => t.name);
+  const DEFAULT_TAG = TAGS_LIST.includes("일반") ? "일반" : TAGS_LIST[0] ?? "일반";
   const [drawerMode, setDrawerMode] = useState<DrawerMode>("closed");
   const [selected, setSelected] = useState<Notice | null>(null);
   const [formError, setFormError] = useState("");
   const [isPending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
+  // 폼 제어: 태그 + 고정 (고정 ON 시 태그 자동 "중요")
+  const [tag, setTag] = useState<string>(DEFAULT_TAG);
+  const [pinned, setPinned] = useState(false);
 
   function canEdit(n: Notice | null): boolean {
     if (!n) return false;
@@ -53,6 +109,8 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
   function openRegister() {
     setSelected(null);
     setFormError("");
+    setTag(DEFAULT_TAG);
+    setPinned(false);
     formRef.current?.reset();
     setDrawerMode("register");
   }
@@ -60,6 +118,8 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
   function openEdit() {
     if (!selected || !canEdit(selected)) return;
     setFormError("");
+    setTag(selected.tag);
+    setPinned(selected.pinned);
     formRef.current?.reset();
     setDrawerMode("edit");
   }
@@ -107,9 +167,9 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
 
         {/* 헤더 */}
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex items-baseline gap-2">
             <h1 className="text-xl font-bold" style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}>공지사항</h1>
-            <p className="text-sm mt-0.5" style={{ color: "#9ca3af" }}>총 {notices.length}건</p>
+            <span className="text-sm" style={{ color: "#9ca3af" }}>총 {notices.length}건</span>
           </div>
           {isAdmin && (
             <button
@@ -122,6 +182,47 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
           )}
         </div>
 
+        {/* 필터 */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative shrink-0" style={{ width: "220px" }}>
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={isPendingFilter ? "#E6007E" : "#9ca3af"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+            </svg>
+            <input
+              type="text" placeholder="공지를 검색해주세요." defaultValue={q}
+              onChange={(e) => updateParams("q", e.target.value)}
+              className="w-full pl-8 pr-3 py-2 text-xs rounded-xl outline-none transition-all"
+              style={{ background: "#ffffff", color: "#1A1C1E", boxShadow: "0px 4px 12px rgba(25,28,29,0.06)", border: "1.5px solid transparent" }}
+              onFocus={(e) => (e.currentTarget.style.borderColor = "#E6007E")}
+              onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
+            />
+          </div>
+          <div className="w-px h-5 shrink-0" style={{ background: "#e8e9ea" }} />
+          <button
+            onClick={() => updateParams("tag", "")}
+            className="px-3.5 py-2 rounded-xl text-xs font-medium transition-all shrink-0"
+            style={{ background: tagFilter === "" ? "#E6007E" : "#ffffff", color: tagFilter === "" ? "#ffffff" : "#4F4F4F", boxShadow: "0px 4px 12px rgba(25,28,29,0.06)" }}
+          >
+            전체 ({notices.length})
+          </button>
+          {TAGS_LIST.map((t) => (
+            <button
+              key={t}
+              onClick={() => updateParams("tag", t)}
+              className="px-3.5 py-2 rounded-xl text-xs font-medium transition-all shrink-0"
+              style={{ background: tagFilter === t ? "#E6007E" : "#ffffff", color: tagFilter === t ? "#ffffff" : "#4F4F4F", boxShadow: "0px 4px 12px rgba(25,28,29,0.06)" }}
+            >
+              {t}
+            </button>
+          ))}
+          {(q || tagFilter) && (
+            <button onClick={() => router.replace(pathname, { scroll: false })} className="ml-auto text-xs underline hover:opacity-70 shrink-0" style={{ color: "#E6007E" }}>
+              초기화
+            </button>
+          )}
+        </div>
+        {(q || tagFilter) && <p className="text-xs -mt-2" style={{ color: "#9ca3af" }}>검색 결과 {filteredNotices.length}건</p>}
+
         {/* 테이블 */}
         <div className="rounded-2xl overflow-hidden" style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25,28,29,0.06)" }}>
           <table className="w-full text-sm">
@@ -133,15 +234,15 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
               </tr>
             </thead>
             <tbody>
-              {notices.length === 0 ? (
+              {filteredNotices.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="py-16 text-center text-sm" style={{ color: "#9ca3af" }}>
-                    등록된 공지사항이 없습니다.
+                    {q || tagFilter ? "검색 결과가 없습니다." : "등록된 공지사항이 없습니다."}
                   </td>
                 </tr>
               ) : (
-                notices.map((notice, i) => {
-                  const tag = TAG_COLOR[notice.tag] ?? TAG_COLOR["일반"];
+                filteredNotices.map((notice, i) => {
+                  const tag = getTagColor(notice.tag);
                   const isSelected = selected?.id === notice.id && drawerMode === "detail";
                   return (
                     <tr
@@ -149,7 +250,7 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
                       onClick={() => openDetail(notice)}
                       className="cursor-pointer transition-colors"
                       style={{
-                        borderBottom: i === notices.length - 1 ? "none" : "1px solid #f3f4f5",
+                        borderBottom: i === filteredNotices.length - 1 ? "none" : "1px solid #f3f4f5",
                         background: isSelected ? "rgba(230,0,126,0.03)" : "transparent",
                       }}
                     >
@@ -241,7 +342,7 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
               {/* 메타 라인: 태그 + 고정 */}
               <div className="flex items-center gap-2 flex-wrap text-xs">
                 {(() => {
-                  const tag = TAG_COLOR[selected.tag] ?? TAG_COLOR["일반"];
+                  const tag = getTagColor(selected.tag);
                   return (
                     <span
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-medium"
@@ -262,7 +363,7 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
 
               {/* 작성자 byline */}
               <div className="flex items-center gap-3">
-                <NoticeAvatar name={selected.author.name} />
+                <NoticeAvatar name={selected.author.name} photoUrl={selected.author.photoUrl} />
                 <div className="min-w-0">
                   <div className="text-sm font-semibold leading-tight" style={{ color: "#1A1C1E" }}>
                     {selected.author.name}
@@ -307,20 +408,26 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
               {/* 태그 */}
               <FormField label="태그">
                 <div className="flex gap-2 flex-wrap">
-                  {TAGS.map((t) => {
-                    const tc = TAG_COLOR[t];
-                    const checked = drawerMode === "edit" ? selected?.tag === t : t === "일반";
+                  {TAGS_LIST.map((t) => {
+                    const tc = getTagColor(t);
                     return (
-                      <label key={t} className="cursor-pointer">
-                        <input type="radio" name="tag" value={t} defaultChecked={checked} className="peer sr-only" />
+                      <label
+                        key={t}
+                        className="cursor-pointer"
+                        style={{ ["--c" as string]: tc.color }}
+                      >
+                        <input
+                          type="radio"
+                          name="tag"
+                          value={t}
+                          checked={tag === t}
+                          onChange={() => setTag(t)}
+                          className="peer sr-only"
+                        />
                         <span
-                          className="inline-block px-3 py-1.5 rounded-xl text-xs font-medium border-2 transition-all peer-checked:border-transparent"
-                          style={{
-                            background: tc.bg,
-                            color: tc.color,
-                            borderColor: "#e8e9ea",
-                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all bg-[#f8f9fa] text-[#4F4F4F] border border-[#e8e9ea] peer-checked:bg-[var(--c)] peer-checked:text-white peer-checked:border-[var(--c)] peer-checked:font-semibold peer-checked:shadow-[0_2px_8px_rgba(0,0,0,0.10)]"
                         >
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: tc.color }} />
                           {t}
                         </span>
                       </label>
@@ -329,10 +436,20 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
                 </div>
               </FormField>
 
-              {/* 고정 여부 */}
+              {/* 고정 여부 — ON 시 태그 자동 "중요" */}
               <label className="flex items-center gap-2.5 cursor-pointer w-fit">
                 <div className="relative w-9 h-5">
-                  <input type="checkbox" name="pinned" defaultChecked={drawerMode === "edit" && selected?.pinned} className="peer sr-only" />
+                  <input
+                    type="checkbox"
+                    name="pinned"
+                    checked={pinned}
+                    onChange={(e) => {
+                      const next = e.target.checked;
+                      setPinned(next);
+                      if (next) setTag("중요");
+                    }}
+                    className="peer sr-only"
+                  />
                   <div className="absolute inset-0 rounded-full transition-colors bg-[#e8e9ea] peer-checked:bg-[#E6007E]" />
                   <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4" />
                 </div>
@@ -393,8 +510,19 @@ function DetailField({ label, children }: { label: string; children: React.React
   );
 }
 
-function NoticeAvatar({ name }: { name: string }) {
+function NoticeAvatar({ name, photoUrl }: { name: string; photoUrl?: string | null }) {
   const initial = (name || "?").charAt(0).toUpperCase();
+  if (photoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={photoUrl}
+        alt={name}
+        className="w-9 h-9 shrink-0 rounded-full object-cover"
+        style={{ background: "#f3f4f5" }}
+      />
+    );
+  }
   return (
     <div
       className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-sm font-semibold text-white"

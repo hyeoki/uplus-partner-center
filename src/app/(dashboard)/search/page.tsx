@@ -15,7 +15,7 @@ const TAB_LABEL: Record<TabType, string> = {
   site: "사이트",
   archive: "자료실",
   notice: "공지사항",
-  inquiry: "문의게시판",
+  inquiry: "헬프센터",
 };
 
 const SERVER_COLOR: Record<string, { bg: string; color: string }> = {
@@ -212,7 +212,7 @@ export default async function SearchPage({ searchParams }: Props) {
                     return (
                       <Link
                         key={s.id}
-                        href="/customers"
+                        href={`/customers?openId=${encodeURIComponent(s.id)}`}
                         className="block px-5 py-4 rounded-xl transition-colors hover:bg-gray-50"
                       >
                         <div className="flex items-center gap-2 mb-1">
@@ -242,7 +242,7 @@ export default async function SearchPage({ searchParams }: Props) {
                   {archives.map((a) => (
                     <Link
                       key={a.id}
-                      href="/archive"
+                      href={`/archive?openId=${a.id}`}
                       className="block px-5 py-4 rounded-xl transition-colors hover:bg-gray-50"
                     >
                       <div className="flex items-center gap-2 mb-1">
@@ -276,7 +276,7 @@ export default async function SearchPage({ searchParams }: Props) {
                     return (
                       <Link
                         key={n.id}
-                        href="/notice"
+                        href={`/notice?openId=${n.id}`}
                         className="block px-5 py-4 rounded-xl transition-colors hover:bg-gray-50"
                       >
                         <div className="flex items-center gap-2 mb-1">
@@ -299,9 +299,9 @@ export default async function SearchPage({ searchParams }: Props) {
                 </Section>
               )}
 
-              {/* 문의게시판 */}
+              {/* 헬프센터 */}
               {showInquiry && inquiries.length > 0 && (
-                <Section title="문의게시판" count={inquiries.length}>
+                <Section title="헬프센터" count={inquiries.length}>
                   {inquiries.map((i) => {
                     const cat = INQ_CATEGORY[i.category] ?? INQ_CATEGORY["기타"];
                     const st = INQ_STATUS[i.status] ?? INQ_STATUS.open;
@@ -309,7 +309,7 @@ export default async function SearchPage({ searchParams }: Props) {
                     return (
                       <Link
                         key={i.id}
-                        href="/inquiry"
+                        href={`/inquiry?openId=${i.id}`}
                         className="block px-5 py-4 rounded-xl transition-colors hover:bg-gray-50"
                       >
                         <div className="flex items-center gap-2 mb-1">

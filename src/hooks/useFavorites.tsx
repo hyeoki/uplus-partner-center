@@ -4,12 +4,10 @@ import {
   createContext,
   useContext,
   useState,
-  useEffect,
   useCallback,
   ReactNode,
 } from "react";
-
-const STORAGE_KEY = "partner-center-favorites";
+import { toggleFavoriteMenu } from "@/app/actions/favorites";
 
 /* ── Context ── */
 interface FavoritesCtx {
@@ -24,30 +22,31 @@ const FavoritesContext = createContext<FavoritesCtx>({
   isFavorite: () => false,
 });
 
-/* ── Provider (dashboard layout 에 감싸줌) ── */
-export function FavoritesProvider({ children }: { children: ReactNode }) {
-  const [favorites, setFavorites] = useState<string[]>([]);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) setFavorites(JSON.parse(stored));
-    } catch {}
-  }, []);
+/* ── Provider — DB에서 받은 초기값으로 시작, 토글 시 서버에 영구 저장 ── */
+export function FavoritesProvider({
+  children,
+  initial = [],
+}: {
+  children: ReactNode;
+  initial?: string[];
+}) {
+  const [favorites, setFavorites] = useState<string[]>(initial);
 
   const toggle = useCallback((href: string) => {
-    setFavorites((prev) => {
-      const next = prev.includes(href)
-        ? prev.filter((h) => h !== href)
-        : [...prev, href];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
+    // optimistic update — 즉시 UI 반영
+    setFavorites((prev) =>
+      prev.includes(href) ? prev.filter((h) => h !== href) : [...prev, href],
+    );
+    // 서버에 저장 (실패 시 다음 페이지 이동에서 동기화됨)
+    void toggleFavoriteMenu(href).then((next) => {
+      // 서버 응답이 정답이므로 동기화
+      setFavorites(next);
     });
   }, []);
 
   const isFavorite = useCallback(
     (href: string) => favorites.includes(href),
-    [favorites]
+    [favorites],
   );
 
   return (
