@@ -1,0 +1,296 @@
+"use client";
+
+import { FormEvent, useEffect, useRef, useState, useTransition } from "react";
+
+type ChatRole = "user" | "assistant";
+
+type ChatMessage = {
+  id: string;
+  role: ChatRole;
+  content: string;
+};
+
+const INITIAL_MESSAGE: ChatMessage = {
+  id: "welcome",
+  role: "assistant",
+  content:
+    "안녕하세요. U+초정밀측위 파트너센터 챗봇입니다. 서비스 이용 방법이나 화면 안내가 필요하면 편하게 물어보세요.",
+};
+
+const SUGGESTED_QUESTIONS = [
+  "최근 공지사항 핵심만 알려줘",
+  "자료실에서 소개서나 브로슈어를 어떻게 찾을 수 있어?",
+  "사이트 관리 메뉴에서 무엇을 확인할 수 있어?",
+];
+
+export default function ChatbotWidget() {
+  const [open, setOpen] = useState(false);
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messageIdRef = useRef(1);
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages, isPending, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    inputRef.current?.focus();
+  }, [open]);
+
+  function nextMessageId(prefix: string) {
+    const id = messageIdRef.current;
+    messageIdRef.current += 1;
+    return `${prefix}-${id}`;
+  }
+
+  async function sendMessage(rawInput: string) {
+    const trimmed = rawInput.trim();
+    if (!trimmed || isPending) return;
+    const nextUserMessage: ChatMessage = {
+      id: nextMessageId("user"),
+      role: "user",
+      content: trimmed,
+    };
+
+    const nextMessages = [...messages, nextUserMessage];
+    setMessages(nextMessages);
+    setInput("");
+    setError(null);
+
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: nextMessages.map(({ role, content }) => ({ role, content })),
+          }),
+        });
+
+        const data = (await res.json().catch(() => null)) as
+          | { reply?: string; error?: string }
+          | null;
+
+        if (!res.ok || !data?.reply) {
+          const message =
+            data?.error ?? "지금은 답변을 가져오지 못했습니다. 잠시 후 다시 시도해주세요.";
+          setError(message);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: nextMessageId("assistant-error"),
+              role: "assistant",
+              content: message,
+            },
+          ]);
+          return;
+        }
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: nextMessageId("assistant"),
+            role: "assistant",
+            content: data.reply,
+          },
+        ]);
+      } catch {
+        const message = "네트워크 상태를 확인한 뒤 다시 시도해주세요.";
+        setError(message);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: nextMessageId("assistant-network"),
+            role: "assistant",
+            content: message,
+          },
+        ]);
+      }
+    });
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await sendMessage(input);
+  }
+
+  return (
+    <>
+      {open && (
+        <div className="fixed inset-0 z-40 bg-black/10 md:bg-transparent" onClick={() => setOpen(false)} />
+      )}
+
+      <div className="fixed right-4 bottom-4 z-50 md:right-8 md:bottom-8">
+        {open && (
+          <div
+            className="mb-3 flex w-[calc(100vw-2rem)] max-w-[380px] flex-col overflow-hidden rounded-[28px] border"
+            style={{
+              background: "rgba(255,255,255,0.96)",
+              borderColor: "rgba(230, 0, 126, 0.10)",
+              boxShadow: "0px 24px 64px rgba(26, 28, 30, 0.18)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              maxHeight: "min(75vh, 720px)",
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div
+              className="flex items-start justify-between gap-3 px-5 py-4"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(230,0,126,0.08) 0%, rgba(248,249,250,0.95) 100%)",
+                borderBottom: "1px solid rgba(230, 0, 126, 0.08)",
+              }}
+            >
+              <div>
+                <div
+                  className="text-sm font-semibold"
+                  style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
+                >
+                  파트너센터 챗봇
+                </div>
+                <p className="mt-1 text-[12px]" style={{ color: "#6b7280" }}>
+                  서비스 이용과 화면 안내를 도와드립니다.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
+                style={{ background: "#ffffff", color: "#6b7280" }}
+                aria-label="챗봇 닫기"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div ref={scrollRef} className="flex-1 min-h-0 space-y-3 overflow-y-auto px-4 py-4">
+              {messages.map((message) => {
+                const isUser = message.role === "user";
+                return (
+                  <div
+                    key={message.id}
+                    className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className="max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-[13px] leading-6"
+                      style={{
+                        background: isUser ? "#E6007E" : "#f3f4f5",
+                        color: isUser ? "#ffffff" : "#1A1C1E",
+                        borderTopRightRadius: isUser ? 8 : 18,
+                        borderTopLeftRadius: isUser ? 18 : 8,
+                      }}
+                    >
+                      {message.content}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {messages.length === 1 && !isPending && (
+                <div className="space-y-2">
+                  <div className="px-1 text-[11px] font-medium" style={{ color: "#9ca3af" }}>
+                    추천 질문
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {SUGGESTED_QUESTIONS.map((question) => (
+                      <button
+                        key={question}
+                        type="button"
+                        onClick={() => void sendMessage(question)}
+                        className="rounded-full border px-3 py-2 text-left text-[12px] transition-colors hover:border-[#E6007E] hover:text-[#E6007E]"
+                        style={{
+                          borderColor: "#e8e9ea",
+                          background: "#ffffff",
+                          color: "#4F4F4F",
+                        }}
+                      >
+                        {question}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {isPending && (
+                <div className="flex justify-start">
+                  <div
+                    className="rounded-2xl px-4 py-3 text-[13px]"
+                    style={{ background: "#f3f4f5", color: "#6b7280" }}
+                  >
+                    답변을 준비하고 있습니다...
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleSubmit} className="border-t px-4 py-4" style={{ borderColor: "#edeeef" }}>
+              <div
+                className="rounded-3xl border px-3 py-3"
+                style={{ borderColor: "#e8e9ea", background: "#ffffff" }}
+              >
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  rows={2}
+                  placeholder="궁금한 점을 입력해보세요"
+                  className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-[#9ca3af]"
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      event.currentTarget.form?.requestSubmit();
+                    }
+                  }}
+                />
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <span className="text-[11px]" style={{ color: error ? "#E6007E" : "#9ca3af" }}>
+                    {error ?? "Shift+Enter로 줄바꿈할 수 있습니다."}
+                  </span>
+                  <button
+                    type="submit"
+                    disabled={isPending || !input.trim()}
+                    className="inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+                    style={{ background: "#E6007E", color: "#ffffff" }}
+                  >
+                    전송
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          className="flex h-15 w-15 items-center justify-center rounded-full shadow-lg transition-transform hover:scale-[1.03]"
+          style={{
+            width: 60,
+            height: 60,
+            background: "linear-gradient(135deg, #E6007E 0%, #FF5AA5 100%)",
+            color: "#ffffff",
+            boxShadow: "0px 16px 32px rgba(230, 0, 126, 0.28)",
+          }}
+          aria-label={open ? "챗봇 닫기" : "챗봇 열기"}
+        >
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M7 10h10M7 14h6" strokeLinecap="round" />
+            <path
+              d="M12 3C6.477 3 2 6.91 2 11.733c0 2.15.889 4.118 2.365 5.641L4 21l3.93-1.855A11.54 11.54 0 0 0 12 19.467c5.523 0 10-3.91 10-8.734C22 6.91 17.523 3 12 3Z"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
+    </>
+  );
+}

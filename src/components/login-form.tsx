@@ -2,13 +2,28 @@
 
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+
+const REMEMBER_KEY = "uplus-partner:remembered-loginId";
 
 export default function LoginForm() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [focused, setFocused] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginId, setLoginId] = useState("");
+  const [remember, setRemember] = useState(false);
+
+  // 마운트 시 localStorage에서 저장된 아이디 불러오기
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(REMEMBER_KEY);
+    if (saved) {
+      setLoginId(saved);
+      setRemember(true);
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -16,8 +31,19 @@ export default function LoginForm() {
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
+    const id = String(formData.get("loginId") ?? "");
+
+    // 체크 상태에 따라 localStorage 저장/삭제
+    if (typeof window !== "undefined") {
+      if (remember && id) {
+        window.localStorage.setItem(REMEMBER_KEY, id);
+      } else {
+        window.localStorage.removeItem(REMEMBER_KEY);
+      }
+    }
+
     const result = await signIn("credentials", {
-      loginId: formData.get("loginId"),
+      loginId: id,
       password: formData.get("password"),
       redirect: false,
     });
@@ -34,40 +60,108 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* ID Field */}
       <div>
-        <label className="block text-xs font-medium text-stone-700 mb-1.5">
+        <label className="block text-xs font-medium mb-1.5" style={{ color: "#1A1C1E" }}>
           아이디
         </label>
         <input
           name="loginId"
           type="text"
           placeholder="아이디를 입력하세요"
-          className="w-full h-10 border border-stone-200 rounded-lg px-3 text-sm outline-none focus:border-fuchsia-600 focus:ring-2 focus:ring-fuchsia-100 transition"
+          value={loginId}
+          onChange={(e) => setLoginId(e.target.value)}
+          onFocus={() => setFocused("loginId")}
+          onBlur={() => setFocused(null)}
+          className="w-full h-11 rounded-lg px-3 text-sm outline-none transition-all"
+          style={{
+            background: focused === "loginId" ? "#ffffff" : "#e8e9ea",
+            color: "#1A1C1E",
+            borderLeft: focused === "loginId" ? "2px solid #E6007E" : "2px solid transparent",
+          }}
           required
         />
       </div>
+
+      {/* Password Field */}
       <div>
-        <label className="block text-xs font-medium text-stone-700 mb-1.5">
+        <label className="block text-xs font-medium mb-1.5" style={{ color: "#1A1C1E" }}>
           비밀번호
         </label>
-        <input
-          name="password"
-          type="password"
-          placeholder="비밀번호를 입력하세요"
-          className="w-full h-10 border border-stone-200 rounded-lg px-3 text-sm outline-none focus:border-fuchsia-600 focus:ring-2 focus:ring-fuchsia-100 transition"
-          required
-        />
+        <div className="relative">
+          <input
+            name="password"
+            type={showPassword ? "text" : "password"}
+            placeholder="비밀번호를 입력하세요"
+            onFocus={() => setFocused("password")}
+            onBlur={() => setFocused(null)}
+            className="w-full h-11 rounded-lg pl-3 pr-10 text-sm outline-none transition-all"
+            style={{
+              background: focused === "password" ? "#ffffff" : "#e8e9ea",
+              color: "#1A1C1E",
+              borderLeft: focused === "password" ? "2px solid #E6007E" : "2px solid transparent",
+            }}
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            tabIndex={-1}
+            aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+            title={showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+            style={{ color: "#9ca3af" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#E6007E")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#9ca3af")}
+          >
+            {showPassword ? (
+              // eye-off
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a19.5 19.5 0 015.06-5.94" />
+                <path d="M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a19.5 19.5 0 01-3.17 4.19" />
+                <path d="M14.12 14.12A3 3 0 119.88 9.88" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </svg>
+            ) : (
+              // eye
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
 
-      {error && <p className="text-xs text-fuchsia-600">{error}</p>}
+      {/* 아이디 기억하기 */}
+      <div className="flex justify-end">
+        <label className="flex items-center gap-2 text-xs cursor-pointer select-none" style={{ color: "#4F4F4F" }}>
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+            className="w-4 h-4 rounded cursor-pointer"
+            style={{ accentColor: "#E6007E" }}
+          />
+          아이디 기억하기
+        </label>
+      </div>
 
-      <Button
+      {error && <p className="text-xs" style={{ color: "#E6007E" }}>{error}</p>}
+
+      {/* Primary CTA — Precision Gradient */}
+      <button
         type="submit"
         disabled={loading}
-        className="w-full h-10 bg-fuchsia-600 hover:bg-fuchsia-700 text-white rounded-lg text-sm font-medium"
+        className="w-full h-11 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-60"
+        style={{
+          background: "#E6007E",
+          color: "#ffffff",
+          fontFamily: "var(--font-display)",
+        }}
       >
         {loading ? "로그인 중..." : "로그인"}
-      </Button>
+      </button>
     </form>
   );
 }

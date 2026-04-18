@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "Site" ADD COLUMN "licenseName" TEXT;
+ALTER TABLE "Site" ADD COLUMN "licenseType" TEXT;
+ALTER TABLE "Site" ADD COLUMN "licenseColor" TEXT;
+ALTER TABLE "Site" ADD COLUMN "sessionCount" INTEGER;
+ALTER TABLE "Site" ADD COLUMN "licenseStart" DATETIME;
+ALTER TABLE "Site" ADD COLUMN "licenseEnd" DATETIME;
+ALTER TABLE "Site" ADD COLUMN "expireStatus" BOOLEAN;

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Image from "next/image";
 import { auth } from "@/lib/auth";
 import LoginForm from "@/components/login-form";
 
@@ -7,55 +8,75 @@ export default async function LoginPage() {
   if (session) redirect("/home");
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-stone-50">
-      <div className="flex w-full max-w-[840px] min-h-[560px] rounded-xl overflow-hidden border border-stone-200 bg-white shadow-sm">
+    <div className="flex min-h-screen items-center justify-center" style={{ background: "#f8f9fa" }}>
+      <div
+        className="flex w-full max-w-[860px] min-h-[580px] rounded-2xl overflow-hidden"
+        style={{ boxShadow: "0px 12px 32px rgba(25, 28, 29, 0.06)" }}
+      >
         {/* Left Panel */}
-        <div className="hidden md:flex w-[42%] flex-col justify-between border-r border-stone-200 p-9">
+        <div
+          className="hidden md:flex w-[42%] flex-col justify-between p-10"
+          style={{ background: "#ffffff" }}
+        >
           <div>
-            <div className="text-xl font-medium text-stone-900 leading-snug mb-2">
-              U+ 초정밀측위
-              <br />
+            <Image
+              src="/logo.svg"
+              alt="U+ 초정밀측위"
+              width={180}
+              height={36}
+              className="object-contain mb-1.5"
+              priority
+            />
+            <div
+              className="text-base font-semibold mb-3"
+              style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
+            >
               파트너센터
             </div>
-            <p className="text-sm text-stone-400 leading-relaxed">
-              파트너를 위한 공지사항, 자료실,
-              <br />
-              시스템 관리 서비스를 제공합니다.
+            <p className="text-sm leading-relaxed" style={{ color: "#4F4F4F" }}>
+              파트너를 위한 모든 자료를 여기서 확인해보세요!
             </p>
           </div>
+
+          {/* Bottom progress bar */}
           <div className="flex gap-2">
-            <div className="h-1 w-16 rounded-full bg-fuchsia-600" />
-            <div className="h-1 w-10 rounded-full bg-stone-200" />
-            <div className="h-1 w-6 rounded-full bg-stone-200" />
+            <div className="h-1 w-16 rounded-full" style={{ background: "#E6007E" }} />
+            <div className="h-1 w-10 rounded-full" style={{ background: "#e8e9ea" }} />
+            <div className="h-1 w-6 rounded-full" style={{ background: "#e8e9ea" }} />
           </div>
         </div>
 
         {/* Right Panel */}
-        <div className="flex-1 flex flex-col justify-center p-10">
-          <h1 className="text-xl font-medium mb-1">로그인</h1>
-          <p className="text-sm text-stone-400 mb-6">
-            파트너센터에 로그인하세요
-          </p>
-
-          <div className="bg-fuchsia-50 rounded-lg p-3 mb-5 flex items-start gap-2">
-            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-fuchsia-600 shrink-0" />
-            <span className="text-xs text-fuchsia-800 leading-relaxed">
-              테스트 계정: partner / 1234
-            </span>
-          </div>
+        <div
+          className="flex-1 flex flex-col justify-center px-12 py-10"
+          style={{ background: "#f8f9fa" }}
+        >
+          <h1
+            className="text-2xl font-bold mb-8"
+            style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
+          >
+            로그인
+          </h1>
 
           <LoginForm />
 
-          <div className="flex gap-4 mt-6 text-xs text-stone-400">
-            <span className="hover:text-stone-600 cursor-pointer">
+          <div className="flex gap-5 mt-7 text-xs justify-center" style={{ color: "#9ca3af" }}>
+            <a
+              href="https://www.hi-rtk.io/#/main/consult"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#E6007E] transition-colors"
+            >
               계정 문의 &rsaquo;
-            </span>
-            <span className="hover:text-stone-600 cursor-pointer">
+            </a>
+            <a
+              href="https://www.hi-rtk.io/#/main/consult"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#E6007E] transition-colors"
+            >
               가입 신청 &rsaquo;
-            </span>
-            <span className="hover:text-stone-600 cursor-pointer">
-              이용 안내 &rsaquo;
-            </span>
+            </a>
           </div>
         </div>
       </div>

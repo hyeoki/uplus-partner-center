@@ -18,8 +18,134 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  notices  Notice[]
-  comments Comment[]
+  // hi-rtk.io 동기화 필드 (로그인 시점에 갱신)
+  tenantNames            String?   // 사이트(테넌트) 이름들 — CSV로 보임
+  groupNames             String?   // 그룹명 — CSV로 보임
+  roleNames              String?   // 역할명 — CSV로 보임
+  lastConnectionStatus   String?   // 예: "LOGIN" / "LOGOUT"
+  lastConnectionAt       DateTime? // 최근 접속(로그인) 시각
+  lastDisconnectionAt    DateTime? // 최근 로그아웃 시각
+  photoUrl               String?   // hi-rtk 프로필 사진 downloadUrl (공개 접근)
+  // 사이트/라이선스 background sync 완료 시각.
+  // 로그인 시점에 NULL로 초기화 → background sync 끝나면 갱신.
+  // null이면 첫 로그인 직후 → UI에서 스켈레톤 + 자동 새로고침으로 처리.
+  lastSyncedAt           DateTime?
+
+  notices    Notice[]
+  comments   Comment[]
+  sites      Site[]
+  inquiries  Inquiry[]
+}
+
+/**
+ * 문의게시판 — 베타 운영 기간 중 사용자 의견/버그/개선 요청 수집.
+ * 작성자만 조회 가능 (admin은 전체 조회). admin이 reply를 채우면 상태 = "answered".
+ */
+model Inquiry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  String   @default("기타")  // 버그 / 개선 / 질문 / 기타
+  title     String
+  content   String
+  status    String   @default("open")  // open / answered / closed
+  isPrivate Boolean  @default(false)    // true면 admin과 작성자만 조회 가능
+  reply     String?
+  replyAt   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+/**
+ * hi-rtk 시스템의 역할(Role) 캐시.
+ * /rest/api/v1/portal/auth/roles 응답을 로그인 시 동기화.
+ * 등록 폼의 "조회 권한" 옵션 소스.
+ */
+model KnownRole {
+  id            Int       @id @default(autoincrement())
+  hiRtkRoleEid  Int       @unique // hi-rtk role.entityId
+  name          String    @unique
+  description   String?
+  syncedAt      DateTime  @default(now()) @updatedAt
+}
+
+model Site {
+  id                  String   @id @default(cuid())
+  // 서버 구분: AWS = hi-rtk.io / NCP = wecoms.com (네이버 공공클라우드)
+  //   민간/일반 사이트는 보통 AWS, 공공기관 사이트는 NCP에 위치
+  server              String   @default("AWS")
+  // hi-rtk 식별자
+  hiRtkSiteEid        Int      // /portal/my/sites 응답의 entityId
+  hiRtkTenantEid      Int      // tenant.entityId
+  hiRtkPortalUserEid  Int      // portalUser.entityId (=등록자)
+  // 표시용 — tenant
+  name                String   // tenant.name (영문 코드)
+  alias               String?  // tenant.alias (한글)
+  description         String?
+  totalUserCount      Int?
+  bookmark            Boolean  @default(false)
+  hiRtkRegDate        DateTime?
+  // 제품
+  productName         String?  // product.name (예: HI CCP)
+  productCode         String?  // product.code (예: GOSLIN_CCP)
+  productHost         String?
+  productContextPath  String?
+  // 라이선스 (가장 최근/활성 1건 요약 — /portal/site/licenses/simple-info/all)
+  licenseName         String?  // 일반형 / 고급형 / FREE (표시용)
+  licenseType         String?  // BASIC / STANDARD / FREE
+  licenseColor        String?  // hi-rtk가 부여한 색상 hex
+  sessionCount        Int?     // 동시접속 수
+  licenseStart        DateTime?
+  licenseEnd          DateTime?
+  expireStatus        Boolean? // true=만료, false=활성
+  // 소속
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncedAt            DateTime @default(now()) @updatedAt
+
+  licenses            SiteLicense[]
+
+  @@unique([userId, server, hiRtkSiteEid])
+  @@index([userId])
+}
+
+/**
+ * 사이트별 라이선스 단건 (1:N).
+ * /rest/api/v1/portal/site/licenses 응답을 행 단위로 저장.
+ * 한 사이트가 여러 라이선스를 가질 수 있으므로 각각 저장.
+ */
+model SiteLicense {
+  id                  String   @id @default(cuid())
+  siteId              String
+  site                Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  hiRtkSiteLicenseEid Int      // 응답의 entityId
+  // 라이선스
+  licenseEntityId     Int?     // 9=일반형 / 10=FREE / 11=고급형
+  licenseName         String?  // 표시명
+  licenseType         String?  // FREE / BASIC / STANDARD
+  licenseColor        String?
+  // 구분
+  siteLicenseType     String?  // OFFICIAL / POC / DEV
+  // 요금제 (자유입력)
+  plan                String?
+  // 기간/접속
+  sessionCount        Int?
+  startDate           DateTime?
+  endDate             DateTime?
+  expireStatus        Boolean?  // 기간 만료 여부 (시간 기반)
+  activeStatus        Boolean?  // admin 토글 활성 여부
+  licenseStatus       Boolean?  // 최종 활성 여부 (=activeStatus AND NOT expireStatus). hi-rtk 화면의 "활성/비활성"과 일치
+  // 추가
+  agencyName          String?
+  applicationName     String?
+  note                String?
+  syncedAt            DateTime @default(now()) @updatedAt
+
+  @@unique([siteId, hiRtkSiteLicenseEid])
+  @@index([siteId])
 }
 
 model Notice {
@@ -28,6 +154,10 @@ model Notice {
   content   String
   tag       String   // 중요, 시스템, 정책, 일반
   pinned    Boolean  @default(false)
+  // 조회 권한: hi-rtk roleNames CSV. null/empty = 전체 공개.
+  // 본인 User.roleNames와 교집합이 있으면 조회 가능.
+  // 형식: 양쪽에 콤마로 감싸서 저장 (",role1,role2,") — substring 매칭 안전성 위해
+  visibleRoles String?
   authorId  String
   author    User     @relation(fields: [authorId], references: [id])
   createdAt DateTime @default(now())
@@ -70,11 +200,16 @@ model Category {
 model Archive {
   id         Int      @id @default(autoincrement())
   title      String
+  content    String?
   type       String   // file | link
   ext        String?
   size       String?
-  url        String?
+  url        String?  // 외부 링크(type=link) 또는 NAS 공유링크(백업/관리용)
+  nasPath    String?  // NAS 내부 절대경로 (서버 프록시 다운로드용)
+  fileName   String?
   downloads  Int      @default(0)
+  // 조회 권한: hi-rtk roleNames CSV (양쪽 콤마 감쌈). null/empty = 전체 공개.
+  visibleRoles String?
   categoryId Int
   category   Category @relation(fields: [categoryId], references: [id])
   createdAt  DateTime @default(now())
