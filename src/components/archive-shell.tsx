@@ -208,7 +208,7 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
   const drawerOpen = drawerMode !== "closed";
 
   return (
-    <div className="flex items-start gap-6 min-h-0">
+    <div className="flex items-start gap-0 md:gap-6 min-h-0">
       {/* ── 메인 콘텐츠 ── */}
       <div className="flex-1 min-w-0 space-y-5">
 
@@ -254,18 +254,19 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
         <div className="rounded-2xl overflow-hidden" style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25,28,29,0.06)" }}>
           <table className="w-full text-sm table-fixed">
             <colgroup>
-              <col style={{ width: "140px" }} />
+              <col className="w-[110px] md:w-[140px]" />
               <col />
-              <col style={{ width: "110px" }} />
-              <col style={{ width: "120px" }} />
-              <col style={{ width: "100px" }} />
+              <col className="hidden md:table-column md:w-[110px]" />
+              <col className="hidden md:table-column md:w-[120px]" />
+              <col className="w-[80px] md:w-[100px]" />
             </colgroup>
             <thead>
               <tr style={{ borderBottom: "1px solid rgba(230,0,126,0.08)" }}>
-                {["카테고리", "자료명", "작성자", "등록일"].map((h) => (
-                  <th key={h} className="text-left py-4 px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>{h}</th>
-                ))}
-                <th className="text-right py-4 px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>다운로드</th>
+                <th className="text-left py-4 px-3 md:px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>카테고리</th>
+                <th className="text-left py-4 px-3 md:px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>자료명</th>
+                <th className="hidden md:table-cell text-left py-4 px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>작성자</th>
+                <th className="hidden md:table-cell text-left py-4 px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>등록일</th>
+                <th className="text-right py-4 px-3 md:px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>다운로드</th>
               </tr>
             </thead>
             <tbody>
@@ -301,10 +302,10 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
                         background: isSelected ? "rgba(230,0,126,0.03)" : "transparent",
                       }}
                     >
-                      <td className="py-4 px-6">
+                      <td className="py-4 px-3 md:px-6">
                         <span className="px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap" style={{ background: cat.bg, color: cat.color }}>{archive.category.name}</span>
                       </td>
-                      <td className="py-4 px-6">
+                      <td className="py-4 px-3 md:px-6">
                         <span className="font-medium" style={{ color: "#1A1C1E" }}>{archive.title}</span>
                         <div className="flex items-center gap-2 mt-1">
                           {displayExt && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium uppercase" style={{ background: "#e8e9ea", color: "#4F4F4F" }}>{displayExt}</span>}
@@ -312,7 +313,7 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
                           {archive.size && <span className="text-xs" style={{ color: "#9ca3af" }}>{archive.size}</span>}
                         </div>
                       </td>
-                      <td className="py-4 px-6 text-xs whitespace-nowrap truncate" style={{ color: "#4F4F4F" }}>
+                      <td className="hidden md:table-cell py-4 px-6 text-xs whitespace-nowrap truncate" style={{ color: "#4F4F4F" }}>
                         {archive.author ? (
                           <span className="inline-flex items-center gap-2">
                             <ListAvatar name={archive.author.name} photoUrl={archive.author.photoUrl} />
@@ -322,10 +323,10 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
                           "-"
                         )}
                       </td>
-                      <td className="py-4 px-6 text-xs whitespace-nowrap" style={{ color: "#9ca3af" }}>
+                      <td className="hidden md:table-cell py-4 px-6 text-xs whitespace-nowrap" style={{ color: "#9ca3af" }}>
                         {new Date(archive.createdAt).toLocaleDateString("ko-KR")}
                       </td>
-                      <td className="py-4 px-6 text-right">
+                      <td className="py-4 px-3 md:px-6 text-right">
                         {archive.url || hasBodyAttachments(archive.content) ? (
                           <button
                             onClick={(e) => {
@@ -366,12 +367,21 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
         </div>
       </div>
 
-      {/* ── 사이드 드로어 ── */}
+      {/* 모바일 backdrop */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={closeDrawer} />
+      )}
+
+      {/* ── 사이드 드로어 — 데스크톱: 인라인, 모바일: 풀스크린 오버레이 ── */}
       <div
-        className="shrink-0 overflow-hidden transition-all duration-300 ease-in-out"
-        style={{ width: drawerOpen ? "380px" : "0px" }}
+        className={
+          drawerOpen
+            ? "fixed inset-0 z-50 md:static md:inset-auto md:z-auto md:w-[380px] md:shrink-0 transition-all duration-300 ease-in-out"
+            : "shrink-0 overflow-hidden transition-all duration-300 ease-in-out w-0"
+        }
+        style={drawerOpen ? undefined : { width: "0px" }}
       >
-        <div className="w-[380px] rounded-2xl overflow-hidden" style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25,28,29,0.06)" }}>
+        <div className="w-full h-full md:w-[380px] md:h-auto md:rounded-2xl overflow-y-auto md:overflow-hidden" style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25,28,29,0.06)" }}>
 
           {/* 드로어 헤더 */}
           <div className="flex items-center justify-between px-7 py-5" style={{ borderBottom: "1px solid #f3f4f5" }}>

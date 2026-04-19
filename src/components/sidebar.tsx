@@ -113,8 +113,8 @@ export default function Sidebar({
             <Image
               src="/logo.svg"
               alt="U+ 초정밀측위"
-              width={88}
-              height={18}
+              width={72}
+              height={15}
               className="object-contain"
               priority
             />

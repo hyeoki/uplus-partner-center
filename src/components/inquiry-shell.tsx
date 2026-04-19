@@ -220,7 +220,7 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
   const drawerOpen = drawerMode !== "closed";
 
   return (
-    <div className="flex items-start gap-6 min-h-0">
+    <div className="flex items-start gap-0 md:gap-6 min-h-0">
       {/* 메인 — 리스트 */}
       <div className="flex-1 min-w-0 space-y-5">
         <div className="flex items-center justify-between">
@@ -298,15 +298,11 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
             <table className="w-full">
               <thead style={{ background: "#fafbfc", borderBottom: "1px solid #f1f3f5" }}>
                 <tr>
-                  {["카테고리", "제목", "상태", "작성자", "작성일"].map((h) => (
-                    <th
-                      key={h}
-                      className="text-left py-4 px-6 font-medium text-[11px] uppercase tracking-wider"
-                      style={{ color: "#9ca3af" }}
-                    >
-                      {h}
-                    </th>
-                  ))}
+                  <th className="text-left py-4 px-3 md:px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>카테고리</th>
+                  <th className="text-left py-4 px-3 md:px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>제목</th>
+                  <th className="text-left py-4 px-3 md:px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>상태</th>
+                  <th className="hidden md:table-cell text-left py-4 px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>작성자</th>
+                  <th className="hidden md:table-cell text-left py-4 px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>작성일</th>
                 </tr>
               </thead>
               <tbody>
@@ -325,7 +321,7 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
                         background: isSelected ? "rgba(230,0,126,0.03)" : "transparent",
                       }}
                     >
-                      <td className="py-4 px-6 w-24">
+                      <td className="py-4 px-3 md:px-6 w-20 md:w-24">
                         <span
                           className="px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap"
                           style={{ background: cat.bg, color: cat.color }}
@@ -333,7 +329,7 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
                           {q.category}
                         </span>
                       </td>
-                      <td className="py-4 px-6">
+                      <td className="py-4 px-3 md:px-6">
                         <span className="font-medium inline-flex items-center gap-2" style={{ color: "#1A1C1E" }}>
                           {q.canViewBody ? (
                             <>
@@ -350,7 +346,7 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
                           )}
                         </span>
                       </td>
-                      <td className="py-4 px-6 w-24">
+                      <td className="py-4 px-3 md:px-6 w-20 md:w-24">
                         <span
                           className="px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap"
                           style={{ background: st.bg, color: st.color }}
@@ -358,13 +354,13 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
                           {st.label}
                         </span>
                       </td>
-                      <td className="py-4 px-6 w-32 text-xs whitespace-nowrap" style={{ color: "#4F4F4F" }}>
+                      <td className="hidden md:table-cell py-4 px-6 w-32 text-xs whitespace-nowrap" style={{ color: "#4F4F4F" }}>
                         <span className="inline-flex items-center gap-2">
                           <ListAvatar name={q.user.name} photoUrl={q.user.photoUrl} />
                           <span>{q.user.name}</span>
                         </span>
                       </td>
-                      <td className="py-4 px-6 w-28 text-xs whitespace-nowrap" style={{ color: "#9ca3af" }}>
+                      <td className="hidden md:table-cell py-4 px-6 w-28 text-xs whitespace-nowrap" style={{ color: "#9ca3af" }}>
                         {formatDate(date)}
                       </td>
                     </tr>
@@ -376,13 +372,25 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
         </div>
       </div>
 
-      {/* 사이드 드로어 */}
+      {/* 모바일 backdrop */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={closeDrawer}
+        />
+      )}
+
+      {/* 사이드 드로어 — 데스크톱: 인라인, 모바일: 풀스크린 오버레이 */}
       <div
-        className="shrink-0 overflow-hidden transition-all duration-300 ease-in-out"
-        style={{ width: drawerOpen ? "440px" : "0px" }}
+        className={
+          drawerOpen
+            ? "fixed inset-0 z-50 md:static md:inset-auto md:z-auto md:w-[440px] md:shrink-0 transition-all duration-300 ease-in-out"
+            : "shrink-0 overflow-hidden transition-all duration-300 ease-in-out w-0"
+        }
+        style={drawerOpen ? undefined : { width: "0px" }}
       >
         <div
-          className="w-[440px] rounded-2xl overflow-hidden"
+          className="w-full h-full md:w-[440px] md:h-auto md:rounded-2xl overflow-y-auto md:overflow-hidden"
           style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25,28,29,0.06)" }}
         >
           {/* 헤더 */}

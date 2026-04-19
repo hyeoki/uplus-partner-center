@@ -208,7 +208,7 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
   const drawerOpen = drawerMode !== "closed";
 
   return (
-    <div className="flex items-start gap-6 min-h-0">
+    <div className="flex items-start gap-0 md:gap-6 min-h-0">
       {/* ── 메인 콘텐츠 ── */}
       <div className="flex-1 min-w-0 space-y-5">
 
@@ -275,9 +275,10 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: "1px solid rgba(230,0,126,0.08)" }}>
-                {["태그", "제목", "작성자", "작성일"].map((h) => (
-                  <th key={h} className="text-left py-4 px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>{h}</th>
-                ))}
+                <th className="text-left py-4 px-3 md:px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>태그</th>
+                <th className="text-left py-4 px-3 md:px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>제목</th>
+                <th className="hidden md:table-cell text-left py-4 px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>작성자</th>
+                <th className="text-left py-4 px-3 md:px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>작성일</th>
               </tr>
             </thead>
             <tbody>
@@ -301,12 +302,12 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
                         background: isSelected ? "rgba(230,0,126,0.03)" : "transparent",
                       }}
                     >
-                      <td className="py-4 px-6 w-24">
+                      <td className="py-4 px-3 md:px-6 w-20 md:w-24">
                         <span className="px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap" style={{ background: tag.bg, color: tag.color }}>
                           {notice.tag}
                         </span>
                       </td>
-                      <td className="py-4 px-6">
+                      <td className="py-4 px-3 md:px-6">
                         <span className="font-medium" style={{ color: "#1A1C1E" }}>
                           {notice.pinned && (
                             <span className="inline-block w-1.5 h-1.5 rounded-full mr-2 mb-0.5" style={{ background: "#E6007E", verticalAlign: "middle" }} />
@@ -314,7 +315,7 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
                           {notice.title}
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-xs whitespace-nowrap w-32" style={{ color: "#4F4F4F" }}>
+                      <td className="hidden md:table-cell py-4 px-6 text-xs whitespace-nowrap w-32" style={{ color: "#4F4F4F" }}>
                         {notice.author ? (
                           <span className="inline-flex items-center gap-2">
                             <ListAvatar name={notice.author.name} photoUrl={notice.author.photoUrl} />
@@ -324,7 +325,7 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
                           "-"
                         )}
                       </td>
-                      <td className="py-4 px-6 text-xs whitespace-nowrap w-28" style={{ color: "#9ca3af" }}>
+                      <td className="py-4 px-3 md:px-6 text-xs whitespace-nowrap w-24 md:w-28" style={{ color: "#9ca3af" }}>
                         {new Date(notice.createdAt).toLocaleDateString("ko-KR")}
                       </td>
                     </tr>
@@ -336,12 +337,21 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
         </div>
       </div>
 
-      {/* ── 사이드 드로어 ── */}
+      {/* 모바일 backdrop */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={closeDrawer} />
+      )}
+
+      {/* ── 사이드 드로어 — 데스크톱: 인라인, 모바일: 풀스크린 오버레이 ── */}
       <div
-        className="shrink-0 overflow-hidden transition-all duration-300 ease-in-out"
-        style={{ width: drawerOpen ? "400px" : "0px" }}
+        className={
+          drawerOpen
+            ? "fixed inset-0 z-50 md:static md:inset-auto md:z-auto md:w-[400px] md:shrink-0 transition-all duration-300 ease-in-out"
+            : "shrink-0 overflow-hidden transition-all duration-300 ease-in-out w-0"
+        }
+        style={drawerOpen ? undefined : { width: "0px" }}
       >
-        <div className="w-[400px] rounded-2xl overflow-hidden" style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25,28,29,0.06)" }}>
+        <div className="w-full h-full md:w-[400px] md:h-auto md:rounded-2xl overflow-y-auto md:overflow-hidden" style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25,28,29,0.06)" }}>
 
           {/* 드로어 헤더 */}
           <div className="flex items-center justify-between px-7 py-5" style={{ borderBottom: "1px solid #f3f4f5" }}>

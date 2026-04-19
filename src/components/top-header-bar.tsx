@@ -45,18 +45,30 @@ export default function TopHeaderBar() {
       ref={ref}
       className="sticky top-0 z-10 px-4 md:px-8 pt-4 md:pt-5 pb-1 flex items-center gap-2 md:gap-3 pointer-events-none"
     >
-      {/* 모바일 햄버거 */}
-      <button
-        type="button"
-        onClick={toggleMobile}
-        aria-label="메뉴 열기"
-        className="pointer-events-auto md:hidden shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full bg-white/80 hover:bg-white transition-colors"
-        style={{ border: "1px solid #e8e9ea", boxShadow: "0px 4px 12px rgba(25,28,29,0.06)" }}
+      {/* 모바일 햄버거 — 우측 검색 ? 버튼과 정확히 같은 form 구조/스타일 */}
+      <div
+        className="pointer-events-auto md:hidden shrink-0 relative flex items-center h-10 rounded-full overflow-hidden backdrop-blur-md transition-[box-shadow,background] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+        style={{
+          width: "40px",
+          background: scrolled ? "rgba(255,255,255,0.96)" : "rgba(255,255,255,0.7)",
+          border: "1px solid #e8e9ea",
+          boxShadow: scrolled
+            ? "0px 4px 12px rgba(25,28,29,0.06)"
+            : "0px 2px 6px rgba(25,28,29,0.04)",
+        }}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1A1C1E" strokeWidth="2" strokeLinecap="round">
-          <path d="M3 6h18M3 12h18M3 18h18" />
-        </svg>
-      </button>
+        <button
+          type="button"
+          onClick={toggleMobile}
+          aria-label="메뉴 열기"
+          className="shrink-0 w-10 h-10 inline-flex items-center justify-center transition-colors"
+          style={{ color: "#9ca3af" }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M3 6h18M3 12h18M3 18h18" />
+          </svg>
+        </button>
+      </div>
 
       <a
         href="/inquiry?compose=1"

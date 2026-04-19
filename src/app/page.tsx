@@ -22,20 +22,17 @@ export default async function LoginPage() {
             <Image
               src="/logo.svg"
               alt="U+ 초정밀측위"
-              width={130}
-              height={26}
+              width={65}
+              height={13}
               className="object-contain mb-2"
               priority
             />
             <div
-              className="text-2xl font-bold mb-3"
+              className="text-2xl font-bold"
               style={{ fontFamily: "var(--font-display)", color: "#3a3d40" }}
             >
               파트너센터
             </div>
-            <p className="text-sm leading-relaxed" style={{ color: "#4F4F4F" }}>
-              파트너를 위한 모든 자료를 여기서 확인해보세요!
-            </p>
           </div>
 
           {/* Bottom progress bar */}
@@ -52,12 +49,12 @@ export default async function LoginPage() {
           style={{ background: "#f8f9fa" }}
         >
           {/* 모바일 전용 헤더 — 좌측 패널이 숨겨질 때 상단 표시 */}
-          <div className="md:hidden mb-10 flex flex-col items-center">
+          <div className="md:hidden mb-10 flex flex-col items-start">
             <Image
               src="/logo.svg"
               alt="U+ 초정밀측위"
-              width={150}
-              height={30}
+              width={75}
+              height={15}
               className="object-contain mb-2"
               priority
             />
@@ -68,13 +65,6 @@ export default async function LoginPage() {
               파트너센터
             </div>
           </div>
-
-          <h1
-            className="text-2xl font-bold mb-8"
-            style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
-          >
-            로그인
-          </h1>
 
           <LoginForm />
         </div>
