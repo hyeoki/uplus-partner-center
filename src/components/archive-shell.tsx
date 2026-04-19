@@ -572,12 +572,3 @@ function ArchiveAvatar({ name, photoUrl }: { name: string; photoUrl?: string | n
     </div>
   );
 }
-
-function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: "#9ca3af" }}>{label}</p>
-      {children}
-    </div>
-  );
-}

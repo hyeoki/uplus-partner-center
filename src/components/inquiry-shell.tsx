@@ -668,15 +668,6 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
   );
 }
 
-function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-[11px] uppercase tracking-wider mb-1.5" style={{ color: "#9ca3af" }}>{label}</div>
-      {children}
-    </div>
-  );
-}
-
 function Avatar({
   name,
   variant,

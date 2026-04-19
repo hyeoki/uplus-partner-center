@@ -502,15 +502,6 @@ function FormField({ label, required, children }: { label: string; required?: bo
   );
 }
 
-function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: "#9ca3af" }}>{label}</p>
-      {children}
-    </div>
-  );
-}
-
 function NoticeAvatar({ name, photoUrl }: { name: string; photoUrl?: string | null }) {
   const initial = (name || "?").charAt(0).toUpperCase();
   if (photoUrl) {
