@@ -77,10 +77,11 @@ export default function AttachmentsList({ html }: { html: string | null | undefi
             )}
             <a
               href={a.url}
-              target="_blank"
+              download={a.name}
               rel="noopener noreferrer"
               title="다운로드"
               className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white"
+              onClick={(e) => e.stopPropagation()}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -108,7 +109,7 @@ export default function AttachmentsList({ html }: { html: string | null | undefi
           />
           <a
             href={lightboxSrc}
-            target="_blank"
+            download
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
             title="다운로드"
@@ -141,6 +142,10 @@ export default function AttachmentsList({ html }: { html: string | null | undefi
 
 export function hasBodyAttachments(html: string | null | undefined): boolean {
   return extractAttachments(html).length > 0;
+}
+
+export function getBodyAttachments(html: string | null | undefined): Array<{ url: string; name: string; isImage: boolean }> {
+  return extractAttachments(html);
 }
 
 function extractAttachments(html: string | null | undefined): Array<{ url: string; name: string; isImage: boolean }> {

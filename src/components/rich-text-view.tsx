@@ -34,7 +34,7 @@ export default function RichTextView({
     });
   }, [html]);
 
-  // 이미지에 wrap + 호버 다운로드 오버레이 부여 (DOM 변형, 한 번만)
+  // 이미지에 zoom-in 커서 클래스만 부여 (다운로드 오버레이는 라이트박스에서 처리)
   useEffect(() => {
     if (!containerRef.current) return;
     const root = containerRef.current;
@@ -45,14 +45,6 @@ export default function RichTextView({
       wrap.className = "rtv-img-wrap";
       img.parentNode?.insertBefore(wrap, img);
       wrap.appendChild(img);
-      const overlay = document.createElement("a");
-      overlay.href = img.src;
-      overlay.target = "_blank";
-      overlay.rel = "noopener noreferrer";
-      overlay.title = "다운로드";
-      overlay.className = "rtv-img-download";
-      overlay.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
-      wrap.appendChild(overlay);
     });
   }, [safe]);
 
@@ -62,8 +54,6 @@ export default function RichTextView({
     if (!root) return;
     function onClick(e: MouseEvent) {
       const t = e.target as HTMLElement;
-      // 다운로드 버튼(<a>) 클릭은 그대로 진행
-      if (t.closest("a.rtv-img-download")) return;
       const img = t.closest<HTMLImageElement>("img");
       if (!img) return;
       e.preventDefault();
@@ -119,10 +109,10 @@ function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
       {/* 다운로드 */}
       <a
         href={src}
-        target="_blank"
+        download
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
-        title="새 탭에서 열기 / 다운로드"
+        title="다운로드"
         className="fixed top-4 right-16 w-10 h-10 inline-flex items-center justify-center rounded-full bg-white/15 hover:bg-white/25 text-white"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

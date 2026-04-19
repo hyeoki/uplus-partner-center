@@ -5,7 +5,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { createArchive, deleteArchive, incrementDownload, updateArchive } from "@/app/(dashboard)/archive/actions";
 import RichTextEditor from "@/components/rich-text-editor";
 import RichTextView from "@/components/rich-text-view";
-import AttachmentsList, { hasBodyAttachments } from "@/components/attachments-list";
+import AttachmentsList, { hasBodyAttachments, getBodyAttachments } from "@/components/attachments-list";
 import RoleAccessSelector from "@/components/role-access-selector";
 
 interface Category { id: number; name: string; colorId: string }
@@ -145,13 +145,22 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
     });
   }
 
+  function triggerDownload(url: string, fileName: string) {
+    // 같은 origin(/api/files/...)이므로 <a download>가 정상 동작 → 새 탭 안 열고 바로 받기
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
   async function handleDownload(archive: Archive, e: React.MouseEvent) {
     e.stopPropagation();
     if (!archive.url) return;
     await incrementDownload(archive.id);
-    // NAS Web Station 직링크를 새 탭에서 열기 (브라우저가 파일 형식에 따라
-    // 즉시 다운로드 또는 인라인 표시)
-    window.open(archive.url, "_blank", "noopener,noreferrer");
+    triggerDownload(archive.url, archive.fileName ?? archive.title);
   }
 
   const drawerOpen = drawerMode !== "closed";
@@ -260,9 +269,25 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
                         {new Date(archive.createdAt).toLocaleDateString("ko-KR")}
                       </td>
                       <td className="py-4 px-6 text-right">
-                        {archive.url ? (
+                        {archive.url || hasBodyAttachments(archive.content) ? (
                           <button
-                            onClick={(e) => handleDownload(archive, e)}
+                            onClick={(e) => {
+                              if (archive.url) {
+                                handleDownload(archive, e);
+                                return;
+                              }
+                              // 본문 첨부만 있는 경우 — 전체 일괄 다운로드
+                              e.stopPropagation();
+                              const atts = getBodyAttachments(archive.content);
+                              if (atts.length > 0) {
+                                incrementDownload(archive.id);
+                                atts.forEach((a, idx) => {
+                                  // 약간의 간격을 두어 브라우저가 모두 처리하도록
+                                  setTimeout(() => triggerDownload(a.url, a.name), idx * 200);
+                                });
+                              }
+                            }}
+                            title={archive.url ? "다운로드" : "첨부파일 다운로드"}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all hover:opacity-80"
                             style={{ background: "rgba(230,0,126,0.08)", color: "#E6007E" }}
                           >

@@ -75,9 +75,9 @@ export default function LoginForm() {
           onBlur={() => setFocused(null)}
           className="w-full h-11 rounded-lg px-3 text-sm outline-none transition-all"
           style={{
-            background: focused === "loginId" ? "#ffffff" : "#e8e9ea",
+            background: focused === "loginId" ? "#ffffff" : "#f3f4f5",
             color: "#1A1C1E",
-            borderLeft: focused === "loginId" ? "2px solid #E6007E" : "2px solid transparent",
+            boxShadow: focused === "loginId" ? "0 0 0 3px rgba(230,0,126,0.18)" : "none",
           }}
           required
         />
@@ -97,9 +97,9 @@ export default function LoginForm() {
             onBlur={() => setFocused(null)}
             className="w-full h-11 rounded-lg pl-3 pr-10 text-sm outline-none transition-all"
             style={{
-              background: focused === "password" ? "#ffffff" : "#e8e9ea",
+              background: focused === "password" ? "#ffffff" : "#f3f4f5",
               color: "#1A1C1E",
-              borderLeft: focused === "password" ? "2px solid #E6007E" : "2px solid transparent",
+              boxShadow: focused === "password" ? "0 0 0 3px rgba(230,0,126,0.18)" : "none",
             }}
             required
           />
@@ -133,8 +133,8 @@ export default function LoginForm() {
         </div>
       </div>
 
-      {/* 아이디 기억하기 */}
-      <div className="flex justify-end">
+      {/* 좌: 아이디 기억하기 / 우: 계정 문의 */}
+      <div className="flex items-center justify-between">
         <label className="flex items-center gap-2 text-xs cursor-pointer select-none" style={{ color: "#4F4F4F" }}>
           <input
             type="checkbox"
@@ -145,6 +145,15 @@ export default function LoginForm() {
           />
           아이디 기억하기
         </label>
+        <a
+          href="https://www.hi-rtk.io/#/main/consult"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs transition-colors hover:text-[#E6007E]"
+          style={{ color: "#9ca3af" }}
+        >
+          계정 문의 &rsaquo;
+        </a>
       </div>
 
       {error && <p className="text-xs" style={{ color: "#E6007E" }}>{error}</p>}

@@ -205,25 +205,5 @@
   box-shadow: 0 0 0 4px rgba(230, 0, 126, 0.12);
 }
 
-/* RichTextView 이미지 호버 다운로드 버튼 */
+/* RichTextView 이미지 — 클릭 시 라이트박스 */
 .rtv-img-wrap { position: relative; display: inline-block; cursor: zoom-in; line-height: 0; border-radius: 8px; overflow: hidden; }
-.rtv-img-download {
-  position: absolute;
-  top: 8px; right: 8px;
-  width: 30px; height: 30px;
-  border-radius: 50%;
-  background: rgba(0,0,0,0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transform: translateY(-4px);
-  transition: opacity 0.12s ease, transform 0.12s ease;
-  backdrop-filter: blur(4px);
-  pointer-events: none;
-}
-.rtv-img-wrap:hover .rtv-img-download {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}

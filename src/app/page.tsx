@@ -48,9 +48,27 @@ export default async function LoginPage() {
 
         {/* Right Panel */}
         <div
-          className="flex-1 flex flex-col justify-center px-12 py-10"
+          className="flex-1 flex flex-col justify-center px-6 md:px-12 py-10"
           style={{ background: "#f8f9fa" }}
         >
+          {/* 모바일 전용 헤더 — 좌측 패널이 숨겨질 때 상단 표시 */}
+          <div className="md:hidden mb-10 flex flex-col items-center">
+            <Image
+              src="/logo.svg"
+              alt="U+ 초정밀측위"
+              width={240}
+              height={48}
+              className="object-contain mb-2"
+              priority
+            />
+            <div
+              className="text-base font-semibold"
+              style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
+            >
+              파트너센터
+            </div>
+          </div>
+
           <h1
             className="text-2xl font-bold mb-8"
             style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
@@ -59,25 +77,6 @@ export default async function LoginPage() {
           </h1>
 
           <LoginForm />
-
-          <div className="flex gap-5 mt-7 text-xs justify-center" style={{ color: "#9ca3af" }}>
-            <a
-              href="https://www.hi-rtk.io/#/main/consult"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-[#E6007E] transition-colors"
-            >
-              계정 문의 &rsaquo;
-            </a>
-            <a
-              href="https://www.hi-rtk.io/#/main/consult"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-[#E6007E] transition-colors"
-            >
-              가입 신청 &rsaquo;
-            </a>
-          </div>
         </div>
       </div>
     </div>
