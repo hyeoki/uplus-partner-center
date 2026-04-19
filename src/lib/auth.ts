@@ -1,5 +1,10 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+
+/** hi-rtk 로그인은 성공했으나 대리점/파트너(또는 admin) 권한이 없는 경우 — 클라이언트에 명확한 안내용. */
+class RoleDeniedError extends CredentialsSignin {
+  code = "role_denied";
+}
 import { prisma } from "@/lib/db";
 import crypto from "crypto";
 import { authConfig } from "@/lib/auth.config";
@@ -572,14 +577,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               return { id: user.id, name: user.name, email: user.loginId };
             }
 
-            // 게이트 실패 — 로컬 DB 폴백으로 진행
+            // 게이트 실패 — hi-rtk 인증은 성공했으나 권한 부족.
+            // 로컬 DB 폴백으로 우회 못 하도록 즉시 명확한 에러를 던짐.
             const roleList =
               roles.map((r) => r?.name).filter(Boolean).join(", ") || "(none)";
             console.log(
-              `[auth] hi-rtk login: required role missing (roles=[${roleList}]) — falling back to local DB for ${loginId}`,
+              `[auth] hi-rtk login: required role missing (roles=[${roleList}]) for ${loginId}`,
             );
+            throw new RoleDeniedError();
           }
         } catch (err) {
+          if (err instanceof CredentialsSignin) throw err;
           console.error("[auth] hi-rtk block error:", err);
         }
 

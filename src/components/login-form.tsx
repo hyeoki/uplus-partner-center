@@ -51,7 +51,14 @@ export default function LoginForm() {
     setLoading(false);
 
     if (result?.error) {
-      setError("아이디 또는 비밀번호가 올바르지 않습니다.");
+      // NextAuth v5: throw 한 CredentialsSignin 의 code 는 result.code 또는 ?code= 쿼리로 전달
+      const code = (result as { code?: string }).code;
+      const urlCode = result.url ? new URL(result.url, window.location.origin).searchParams.get("code") : null;
+      if (code === "role_denied" || urlCode === "role_denied") {
+        setError("대리점/파트너 계정만 이용 가능합니다.");
+      } else {
+        setError("아이디 또는 비밀번호가 올바르지 않습니다.");
+      }
     } else {
       router.push("/home");
       router.refresh();
