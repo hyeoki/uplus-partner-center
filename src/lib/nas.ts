@@ -181,7 +181,8 @@ export async function uploadAndShare(
   assertEnv();
   const sid = await login();
   try {
-    const dir = String(Date.now());
+    // 같은 ms에 병렬 업로드돼도 충돌 안 나도록 랜덤 suffix 붙임
+    const dir = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const { path } = await uploadFile(sid, dir, buffer, fileName);
     return { shareUrl: publicUrlFor(dir, fileName), nasPath: path };
   } finally {

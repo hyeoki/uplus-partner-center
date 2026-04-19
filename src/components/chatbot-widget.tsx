@@ -20,7 +20,7 @@ const INITIAL_MESSAGE: ChatMessage = {
 const SUGGESTED_QUESTIONS = [
   "최근 공지사항 핵심만 알려줘",
   "자료실에서 소개서나 브로슈어를 어떻게 찾을 수 있어?",
-  "사이트 관리 메뉴에서 무엇을 확인할 수 있어?",
+  "고객사 사이트 메뉴에서 무엇을 확인할 수 있어?",
 ];
 
 export default function ChatbotWidget() {
@@ -268,6 +268,8 @@ export default function ChatbotWidget() {
                   className="flex-1 min-w-0 resize-none bg-transparent text-sm outline-none placeholder:text-[#9ca3af] leading-5 py-2 max-h-[140px]"
                   style={{ height: "36px" }}
                   onKeyDown={(event) => {
+                    // 한글 IME 조합 중(나머지 자모 입력 중)에는 Enter 무시 — 그래야 마지막 글자가 입력란에 안 남음
+                    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
                       event.currentTarget.form?.requestSubmit();

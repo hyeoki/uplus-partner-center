@@ -7,6 +7,7 @@ import RoleAccessSelector from "@/components/role-access-selector";
 import RichTextEditor from "@/components/rich-text-editor";
 import RichTextView from "@/components/rich-text-view";
 import AttachmentsList from "@/components/attachments-list";
+import ListAvatar from "@/components/list-avatar";
 import { getCategoryColor } from "@/lib/category-colors";
 
 interface Notice {
@@ -98,6 +99,26 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
   // 폼 제어: 태그 + 고정 (고정 ON 시 태그 자동 "중요")
   const [tag, setTag] = useState<string>(DEFAULT_TAG);
   const [pinned, setPinned] = useState(false);
+  const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleFilesChange(list: FileList | null) {
+    const files = list ? Array.from(list) : [];
+    if (files.length > 0) setDroppedFiles((prev) => [...prev, ...files]);
+  }
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragOver(false);
+    handleFilesChange(e.dataTransfer.files);
+  }
+  function removeDroppedFile(idx: number) {
+    setDroppedFiles((prev) => prev.filter((_, i) => i !== idx));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+  function escapeAttr(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
 
   function canEdit(n: Notice | null): boolean {
     if (!n) return false;
@@ -144,6 +165,7 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
     setDrawerMode("closed");
     setSelected(null);
     setFormError("");
+    setDroppedFiles([]);
     formRef.current?.reset();
   }
 
@@ -152,6 +174,28 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
     const formData = new FormData(e.currentTarget);
     setFormError("");
     startTransition(async () => {
+      // 첨부 파일 → NAS 업로드 후 본문 끝에 data-attachment 마커로 추가 (본문엔 안 보이고 첨부 카드로만 표시)
+      if (droppedFiles.length > 0) {
+        const links: string[] = [];
+        for (const f of droppedFiles) {
+          const fd = new FormData();
+          fd.set("file", f);
+          const res = await fetch("/api/upload", { method: "POST", body: fd });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            setFormError(err.error ?? `파일 업로드 실패: ${f.name}`);
+            return;
+          }
+          const data = (await res.json()) as { url: string; name: string; isImage: boolean };
+          if (data.isImage) {
+            links.push(`<p data-attachment="extra"><img src="${data.url}" alt="${escapeAttr(data.name)}" /></p>`);
+          } else {
+            links.push(`<p data-attachment="extra"><a href="${data.url}" target="_blank" rel="noopener noreferrer">📎 ${escapeAttr(data.name)}</a></p>`);
+          }
+        }
+        const prevContent = (formData.get("content") as string) ?? "";
+        formData.set("content", prevContent + links.join(""));
+      }
       const result =
         drawerMode === "edit" && selected
           ? await updateNotice(selected.id, formData)
@@ -271,7 +315,14 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
                         </span>
                       </td>
                       <td className="py-4 px-6 text-xs whitespace-nowrap w-32" style={{ color: "#4F4F4F" }}>
-                        {notice.author?.name ?? "-"}
+                        {notice.author ? (
+                          <span className="inline-flex items-center gap-2">
+                            <ListAvatar name={notice.author.name} photoUrl={notice.author.photoUrl} />
+                            <span>{notice.author.name}</span>
+                          </span>
+                        ) : (
+                          "-"
+                        )}
                       </td>
                       <td className="py-4 px-6 text-xs whitespace-nowrap w-28" style={{ color: "#9ca3af" }}>
                         {new Date(notice.createdAt).toLocaleDateString("ko-KR")}
@@ -467,6 +518,49 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
                   value={drawerMode === "edit" ? selected?.content ?? "" : ""}
                   placeholder="공지 내용을 입력하세요"
                 />
+              </FormField>
+
+              {/* 첨부 파일 */}
+              <FormField label="첨부 파일">
+                <div
+                  className="rounded-xl transition-all cursor-pointer"
+                  style={{ border: `2px dashed ${isDragOver ? "#E6007E" : droppedFiles.length > 0 ? "#E6007E" : "#e8e9ea"}`, background: isDragOver ? "rgba(230,0,126,0.04)" : droppedFiles.length > 0 ? "rgba(230,0,126,0.03)" : "#f8f9fa" }}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                  onDragLeave={() => setIsDragOver(false)}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => handleFilesChange(e.target.files)} />
+                  {droppedFiles.length > 0 ? (
+                    <div className="px-3 py-3 space-y-1.5">
+                      {droppedFiles.map((f, idx) => (
+                        <div key={`${f.name}-${idx}`} className="flex items-center gap-3 px-2 py-2 rounded-lg" style={{ background: "rgba(230,0,126,0.04)" }}>
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(230,0,126,0.10)" }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E6007E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate" style={{ color: "#1A1C1E" }}>{f.name}</p>
+                            <p className="text-[11px] mt-0.5" style={{ color: "#9ca3af" }}>{(f.size / (1024 * 1024)).toFixed(1)} MB</p>
+                          </div>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); removeDroppedFile(idx); }} className="shrink-0 hover:opacity-60" style={{ color: "#9ca3af" }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                      ))}
+                      <p className="text-[11px] text-center pt-1" style={{ color: "#E6007E" }}>+ 파일 더 추가</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 py-7">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                      </svg>
+                      <p className="text-xs" style={{ color: "#9ca3af" }}>파일을 드래그하거나 <span style={{ color: "#E6007E" }}>클릭하여 선택</span> (여러 개 가능)</p>
+                      <p className="text-[11px]" style={{ color: "#c4c7ca" }}>최대 100MB / 파일</p>
+                    </div>
+                  )}
+                </div>
               </FormField>
 
               {/* 조회 권한 */}

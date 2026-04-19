@@ -84,24 +84,21 @@ export default function RoleAccessSelector({
               {roles.map((r) => {
                 const checked = selected.has(r);
                 return (
-                  <label key={r} className="cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="peer sr-only"
-                      checked={checked}
-                      onChange={() => toggle(r)}
-                    />
-                    <span
-                      className="inline-block px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all"
-                      style={{
-                        background: checked ? "rgba(230,0,126,0.10)" : "#ffffff",
-                        color: checked ? "#E6007E" : "#4F4F4F",
-                        borderColor: checked ? "#E6007E" : "#e8e9ea",
-                      }}
-                    >
-                      {r}
-                    </span>
-                  </label>
+                  <button
+                    key={r}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={checked}
+                    onClick={() => toggle(r)}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all cursor-pointer"
+                    style={{
+                      background: checked ? "rgba(230,0,126,0.10)" : "#ffffff",
+                      color: checked ? "#E6007E" : "#4F4F4F",
+                      borderColor: checked ? "#E6007E" : "#e8e9ea",
+                    }}
+                  >
+                    {r}
+                  </button>
                 );
               })}
             </div>

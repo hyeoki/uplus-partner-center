@@ -7,8 +7,23 @@ import { createPortal } from "react-dom";
  * 본문 HTML에서 파일 첨부(<a href="...">📎 파일명</a>)를 추출해 리스트로 표시.
  * 에디터에서 파일 업로드 시 삽입한 링크와 매칭됨.
  */
-export default function AttachmentsList({ html }: { html: string | null | undefined }) {
-  const attachments = useMemo(() => extractAttachments(html), [html]);
+type Attachment = { url: string; name: string; isImage: boolean };
+
+export default function AttachmentsList({
+  html,
+  primary,
+}: {
+  html: string | null | undefined;
+  /** 메인 첨부파일 (Archive.url 등) — 있으면 리스트 맨 앞에 함께 표시 */
+  primary?: { url: string; name: string } | null;
+}) {
+  const attachments = useMemo<Attachment[]>(() => {
+    const body = extractAttachments(html);
+    if (!primary?.url) return body;
+    // 같은 URL이면 중복 제거
+    if (body.some((a) => a.url === primary.url)) return body;
+    return [{ url: primary.url, name: primary.name, isImage: isImageUrl(primary.url) }, ...body];
+  }, [html, primary]);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 

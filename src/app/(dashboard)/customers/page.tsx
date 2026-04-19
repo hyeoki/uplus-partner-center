@@ -83,7 +83,7 @@ export default async function CustomersPage({ searchParams }: Props) {
             className="text-xl font-bold"
             style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
           >
-            사이트 관리
+            고객사 사이트
           </h1>
           <span className="text-sm" style={{ color: "#9ca3af" }}>
             사이트 {sites.length}건 · 라이선스 {totalLicenses}건

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createInquiry, deleteInquiry, replyInquiry, updateInquiry } from "@/app/(dashboard)/inquiry/actions";
+import ListAvatar from "@/components/list-avatar";
 
 type InquiryRow = {
   id: string;
@@ -357,8 +358,11 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
                           {st.label}
                         </span>
                       </td>
-                      <td className="py-4 px-6 w-32 text-xs whitespace-nowrap" style={{ color: "#9ca3af" }}>
-                        {q.user.name}
+                      <td className="py-4 px-6 w-32 text-xs whitespace-nowrap" style={{ color: "#4F4F4F" }}>
+                        <span className="inline-flex items-center gap-2">
+                          <ListAvatar name={q.user.name} photoUrl={q.user.photoUrl} />
+                          <span>{q.user.name}</span>
+                        </span>
                       </td>
                       <td className="py-4 px-6 w-28 text-xs whitespace-nowrap" style={{ color: "#9ca3af" }}>
                         {formatDate(date)}

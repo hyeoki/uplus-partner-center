@@ -222,15 +222,23 @@ function Toolbar({ editor }: { editor: Editor }) {
     }
   }
 
+  async function uploadAllSerial(files: File[]) {
+    // FileStation 동시 업로드 시 세션/폴더 충돌 방지 위해 순차 처리
+    const out: Array<{ url: string; name: string; isImage: boolean }> = [];
+    for (const f of files) {
+      const r = await uploadFile(f);
+      if (r?.url) out.push(r);
+    }
+    return out;
+  }
+
   async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const input = e.currentTarget;
     const files = input.files ? Array.from(input.files) : [];
     input.value = "";
     if (files.length === 0) return;
-    // 병렬 업로드 후 HTML 한 번에 삽입
-    const results = await Promise.all(files.map((f) => uploadFile(f)));
+    const results = await uploadAllSerial(files);
     const html = results
-      .filter((r): r is { url: string; name: string; isImage: boolean } => !!r?.url)
       .map((r) => `<p><img src="${r.url}" alt="${escapeAttr(r.name)}" /></p>`)
       .join("");
     if (html) {
@@ -243,9 +251,8 @@ function Toolbar({ editor }: { editor: Editor }) {
     const files = input.files ? Array.from(input.files) : [];
     input.value = "";
     if (files.length === 0) return;
-    const results = await Promise.all(files.map((f) => uploadFile(f)));
+    const results = await uploadAllSerial(files);
     const html = results
-      .filter((r): r is { url: string; name: string; isImage: boolean } => !!r?.url)
       .map((r) => `<p><a href="${r.url}" target="_blank" rel="noopener noreferrer">📎 ${escapeAttr(r.name)}</a></p>`)
       .join("");
     if (html) {

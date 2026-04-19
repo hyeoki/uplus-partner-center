@@ -20,7 +20,13 @@ export default function RichTextView({
 
   const safe = useMemo(() => {
     if (!html) return "";
-    return DOMPurify.sanitize(html, {
+    // 자료실 등록 시 dropzone에 추가된 추가 파일은 data-attachment 마커를 달아둠 —
+    // 본문 렌더에서는 숨기고(AttachmentsList가 보여줌) 중복 방지.
+    const stripped = html.replace(
+      /<(p|div)[^>]*data-attachment[^>]*>[\s\S]*?<\/\1>/gi,
+      "",
+    );
+    return DOMPurify.sanitize(stripped, {
       ALLOWED_TAGS: [
         "p", "br", "strong", "em", "u", "s", "del", "ins",
         "h1", "h2", "h3", "h4",
@@ -30,7 +36,7 @@ export default function RichTextView({
         "img",
         "hr",
       ],
-      ALLOWED_ATTR: ["href", "target", "rel", "class", "src", "alt", "title", "style"],
+      ALLOWED_ATTR: ["href", "target", "rel", "class", "src", "alt", "title", "style", "data-attachment"],
     });
   }, [html]);
 

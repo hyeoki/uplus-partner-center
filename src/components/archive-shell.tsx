@@ -6,6 +6,7 @@ import { createArchive, deleteArchive, incrementDownload, updateArchive } from "
 import RichTextEditor from "@/components/rich-text-editor";
 import RichTextView from "@/components/rich-text-view";
 import AttachmentsList, { hasBodyAttachments, getBodyAttachments } from "@/components/attachments-list";
+import ListAvatar from "@/components/list-avatar";
 import RoleAccessSelector from "@/components/role-access-selector";
 
 interface Category { id: number; name: string; colorId: string }
@@ -46,7 +47,7 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
   // register form state
   const [formError, setFormError] = useState("");
   const [isPendingForm, startFormTransition] = useTransition();
-  const [droppedFile, setDroppedFile] = useState<File | null>(null);
+  const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -84,7 +85,7 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
 
   function openRegister() {
     setSelected(null);
-    setDroppedFile(null);
+    setDroppedFiles([]);
     setFormError("");
     formRef.current?.reset();
     setDrawerMode("register");
@@ -92,7 +93,7 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
 
   function openEdit() {
     if (!selected || !isAdmin) return;
-    setDroppedFile(null);
+    setDroppedFiles([]);
     setFormError("");
     formRef.current?.reset();
     setDrawerMode("edit");
@@ -114,28 +115,60 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
   function closeDrawer() {
     setDrawerMode("closed");
     setSelected(null);
-    setDroppedFile(null);
+    setDroppedFiles([]);
     setFormError("");
     formRef.current?.reset();
   }
 
-  function handleFileChange(file: File | null) {
-    if (file) setDroppedFile(file);
+  function handleFilesChange(list: FileList | null) {
+    const files = list ? Array.from(list) : [];
+    if (files.length > 0) setDroppedFiles((prev) => [...prev, ...files]);
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setIsDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) setDroppedFile(file);
+    handleFilesChange(e.dataTransfer.files);
+  }
+
+  function removeDroppedFile(idx: number) {
+    setDroppedFiles((prev) => prev.filter((_, i) => i !== idx));
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    if (droppedFile) formData.set("file", droppedFile);
     setFormError("");
     startFormTransition(async () => {
+      // 첫 파일은 메인 첨부, 나머지는 NAS 업로드 후 본문에 <a> 링크로 추가
+      if (droppedFiles.length > 0) {
+        formData.set("file", droppedFiles[0]);
+      } else {
+        formData.delete("file");
+      }
+      const extras = droppedFiles.slice(1);
+      if (extras.length > 0) {
+        const links: string[] = [];
+        for (const f of extras) {
+          const fd = new FormData();
+          fd.set("file", f);
+          const res = await fetch("/api/upload", { method: "POST", body: fd });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            setFormError(err.error ?? `추가 파일 업로드 실패: ${f.name}`);
+            return;
+          }
+          const data = (await res.json()) as { url: string; name: string; isImage: boolean };
+          if (data.isImage) {
+            links.push(`<p data-attachment="extra"><img src="${data.url}" alt="${escapeAttr(data.name)}" /></p>`);
+          } else {
+            links.push(`<p data-attachment="extra"><a href="${data.url}" target="_blank" rel="noopener noreferrer">📎 ${escapeAttr(data.name)}</a></p>`);
+          }
+        }
+        const prevContent = (formData.get("content") as string) ?? "";
+        formData.set("content", prevContent + links.join(""));
+      }
       const result =
         drawerMode === "edit" && selected
           ? await updateArchive(selected.id, formData)
@@ -143,6 +176,15 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
       if (result?.error) setFormError(result.error);
       else closeDrawer();
     });
+  }
+
+  function escapeAttr(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function extFromName(name: string): string | null {
+    const m = /\.([a-z0-9]+)(?:\?|$)/i.exec(name);
+    return m ? m[1].toUpperCase() : null;
   }
 
   function triggerDownload(url: string, fileName: string) {
@@ -242,6 +284,13 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
                 filteredArchives.map((archive, i) => {
                   const cat = getCategoryColor(archive.category.colorId);
                   const isSelected = selected?.id === archive.id && drawerMode === "detail";
+                  // 메인 파일이 없으면 본문 첨부에서 확장자 추출 (이미지/파일)
+                  const bodyAtts = !archive.url ? getBodyAttachments(archive.content) : [];
+                  const fallbackExt = !archive.ext && bodyAtts.length > 0
+                    ? extFromName(bodyAtts[0].name)
+                    : null;
+                  const displayExt = archive.ext ?? fallbackExt;
+                  const extraCount = bodyAtts.length > 1 ? bodyAtts.length - 1 : 0;
                   return (
                     <tr
                       key={archive.id}
@@ -258,12 +307,20 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
                       <td className="py-4 px-6">
                         <span className="font-medium" style={{ color: "#1A1C1E" }}>{archive.title}</span>
                         <div className="flex items-center gap-2 mt-1">
-                          {archive.ext && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium uppercase" style={{ background: "#e8e9ea", color: "#4F4F4F" }}>{archive.ext}</span>}
+                          {displayExt && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium uppercase" style={{ background: "#e8e9ea", color: "#4F4F4F" }}>{displayExt}</span>}
+                          {extraCount > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium" style={{ background: "#e8e9ea", color: "#4F4F4F" }}>+{extraCount}</span>}
                           {archive.size && <span className="text-xs" style={{ color: "#9ca3af" }}>{archive.size}</span>}
                         </div>
                       </td>
                       <td className="py-4 px-6 text-xs whitespace-nowrap truncate" style={{ color: "#4F4F4F" }}>
-                        {archive.author?.name ?? "-"}
+                        {archive.author ? (
+                          <span className="inline-flex items-center gap-2">
+                            <ListAvatar name={archive.author.name} photoUrl={archive.author.photoUrl} />
+                            <span>{archive.author.name}</span>
+                          </span>
+                        ) : (
+                          "-"
+                        )}
                       </td>
                       <td className="py-4 px-6 text-xs whitespace-nowrap" style={{ color: "#9ca3af" }}>
                         {new Date(archive.createdAt).toLocaleDateString("ko-KR")}
@@ -272,20 +329,20 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
                         {archive.url || hasBodyAttachments(archive.content) ? (
                           <button
                             onClick={(e) => {
-                              if (archive.url) {
-                                handleDownload(archive, e);
-                                return;
-                              }
-                              // 본문 첨부만 있는 경우 — 전체 일괄 다운로드
                               e.stopPropagation();
-                              const atts = getBodyAttachments(archive.content);
-                              if (atts.length > 0) {
-                                incrementDownload(archive.id);
-                                atts.forEach((a, idx) => {
-                                  // 약간의 간격을 두어 브라우저가 모두 처리하도록
-                                  setTimeout(() => triggerDownload(a.url, a.name), idx * 200);
-                                });
+                              // 메인 파일 + 본문 첨부 모두 합쳐서 일괄 다운로드 (200ms 간격)
+                              const downloads: Array<{ url: string; name: string }> = [];
+                              if (archive.url) {
+                                downloads.push({ url: archive.url, name: archive.fileName ?? archive.title });
                               }
+                              for (const a of getBodyAttachments(archive.content)) {
+                                downloads.push({ url: a.url, name: a.name });
+                              }
+                              if (downloads.length === 0) return;
+                              incrementDownload(archive.id);
+                              downloads.forEach((d, idx) => {
+                                setTimeout(() => triggerDownload(d.url, d.name), idx * 200);
+                              });
                             }}
                             title={archive.url ? "다운로드" : "첨부파일 다운로드"}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all hover:opacity-80"
@@ -417,36 +474,13 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
                 <RichTextView html={selected.content} className="text-[15px]" />
               )}
 
-              {/* 본문에 첨부된 파일들 */}
-              <AttachmentsList html={selected.content} />
-
-              {/* 첨부 파일 카드 */}
-              {selected.url ? (
-                <div
-                  className="flex items-center gap-3 px-4 py-3.5 rounded-2xl"
-                  style={{ background: "#fafbfc", border: "1px solid #f1f3f5" }}
-                >
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(230,0,126,0.08)" }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E6007E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: "#1A1C1E" }}>{selected.fileName ?? selected.title}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      {selected.ext && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase" style={{ background: "#e8e9ea", color: "#4F4F4F" }}>{selected.ext}</span>}
-                      {selected.size && <span className="text-[11px]" style={{ color: "#9ca3af" }}>{selected.size}</span>}
-                    </div>
-                  </div>
-                  <button
-                    onClick={(e) => handleDownload(selected, e)}
-                    className="shrink-0 h-9 px-4 rounded-xl text-xs font-semibold transition-all hover:opacity-90"
-                    style={{ background: "#1A1C1E", color: "#ffffff" }}
-                  >
-                    다운로드
-                  </button>
-                </div>
-              ) : !hasBodyAttachments(selected.content) ? (
+              {/* 첨부파일 — 메인 + 본문 첨부 통합 표시 */}
+              {(selected.url || hasBodyAttachments(selected.content)) ? (
+                <AttachmentsList
+                  html={selected.content}
+                  primary={selected.url ? { url: selected.url, name: selected.fileName ?? selected.title } : null}
+                />
+              ) : (
                 <div
                   className="flex items-center justify-center gap-2 px-4 py-6 rounded-2xl"
                   style={{ background: "#fafbfc", border: "1px dashed #e8e9ea", color: "#9ca3af" }}
@@ -457,7 +491,7 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
                   </svg>
                   <span className="text-xs">첨부 파일이 없습니다</span>
                 </div>
-              ) : null}
+              )}
             </div>
           )}
 
@@ -506,35 +540,40 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
               {drawerMode === "register" && <Field label="파일 업로드">
                 <div
                   className="rounded-xl transition-all cursor-pointer"
-                  style={{ border: `2px dashed ${isDragOver ? "#E6007E" : droppedFile ? "#E6007E" : "#e8e9ea"}`, background: isDragOver ? "rgba(230,0,126,0.04)" : droppedFile ? "rgba(230,0,126,0.03)" : "#f8f9fa" }}
+                  style={{ border: `2px dashed ${isDragOver ? "#E6007E" : droppedFiles.length > 0 ? "#E6007E" : "#e8e9ea"}`, background: isDragOver ? "rgba(230,0,126,0.04)" : droppedFiles.length > 0 ? "rgba(230,0,126,0.03)" : "#f8f9fa" }}
                   onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
                   onDragLeave={() => setIsDragOver(false)}
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <input ref={fileInputRef} type="file" name="file" className="hidden" onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)} accept=".pdf,.ppt,.pptx,.xlsx,.xls,.docx,.doc,.zip,.hwp" />
-                  {droppedFile ? (
-                    <div className="flex items-center gap-3 px-4 py-3.5">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(230,0,126,0.10)" }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E6007E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium truncate" style={{ color: "#1A1C1E" }}>{droppedFile.name}</p>
-                        <p className="text-[11px] mt-0.5" style={{ color: "#9ca3af" }}>{(droppedFile.size / (1024 * 1024)).toFixed(1)} MB</p>
-                      </div>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); setDroppedFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="shrink-0 hover:opacity-60" style={{ color: "#9ca3af" }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                      </button>
+                  <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => handleFilesChange(e.target.files)} />
+                  {droppedFiles.length > 0 ? (
+                    <div className="px-3 py-3 space-y-1.5">
+                      {droppedFiles.map((f, idx) => (
+                        <div key={`${f.name}-${idx}`} className="flex items-center gap-3 px-2 py-2 rounded-lg" style={{ background: "rgba(230,0,126,0.04)" }}>
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(230,0,126,0.10)" }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E6007E" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate" style={{ color: "#1A1C1E" }}>{f.name}</p>
+                            <p className="text-[11px] mt-0.5" style={{ color: "#9ca3af" }}>{(f.size / (1024 * 1024)).toFixed(1)} MB</p>
+                          </div>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); removeDroppedFile(idx); }} className="shrink-0 hover:opacity-60" style={{ color: "#9ca3af" }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                          </button>
+                        </div>
+                      ))}
+                      <p className="text-[11px] text-center pt-1" style={{ color: "#E6007E" }}>+ 파일 더 추가</p>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2 py-7">
                       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
                       </svg>
-                      <p className="text-xs" style={{ color: "#9ca3af" }}>파일을 드래그하거나 <span style={{ color: "#E6007E" }}>클릭하여 선택</span></p>
-                      <p className="text-[11px]" style={{ color: "#c4c7ca" }}>PDF, PPT, XLSX, DOCX, HWP, ZIP · 최대 50MB</p>
+                      <p className="text-xs" style={{ color: "#9ca3af" }}>파일을 드래그하거나 <span style={{ color: "#E6007E" }}>클릭하여 선택</span> (여러 개 가능)</p>
+                      <p className="text-[11px]" style={{ color: "#c4c7ca" }}>최대 100MB / 파일</p>
                     </div>
                   )}
                 </div>
