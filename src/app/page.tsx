@@ -22,14 +22,14 @@ export default async function LoginPage() {
             <Image
               src="/logo.svg"
               alt="U+ 초정밀측위"
-              width={180}
-              height={36}
-              className="object-contain mb-1.5"
+              width={130}
+              height={26}
+              className="object-contain mb-2"
               priority
             />
             <div
-              className="text-base font-semibold mb-3"
-              style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
+              className="text-2xl font-bold mb-3"
+              style={{ fontFamily: "var(--font-display)", color: "#3a3d40" }}
             >
               파트너센터
             </div>
@@ -56,14 +56,14 @@ export default async function LoginPage() {
             <Image
               src="/logo.svg"
               alt="U+ 초정밀측위"
-              width={240}
-              height={48}
+              width={150}
+              height={30}
               className="object-contain mb-2"
               priority
             />
             <div
-              className="text-base font-semibold"
-              style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
+              className="text-2xl font-bold"
+              style={{ fontFamily: "var(--font-display)", color: "#3a3d40" }}
             >
               파트너센터
             </div>

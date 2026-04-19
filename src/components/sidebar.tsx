@@ -113,14 +113,14 @@ export default function Sidebar({
             <Image
               src="/logo.svg"
               alt="U+ 초정밀측위"
-              width={148}
-              height={30}
+              width={88}
+              height={18}
               className="object-contain"
               priority
             />
             <div
-              className="mt-1.5 text-[13px] font-semibold"
-              style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
+              className="mt-2 text-xl font-bold leading-tight"
+              style={{ fontFamily: "var(--font-display)", color: "#3a3d40" }}
             >
               파트너센터
             </div>
