@@ -45,6 +45,7 @@ export default async function ArchivePage({
         downloads: true, visibleRoles: true,
         createdAt: true, categoryId: true,
         category: { select: { id: true, name: true, colorId: true } },
+        author: { select: { name: true, photoUrl: true } },
       },
     }),
     prisma.category.findMany({

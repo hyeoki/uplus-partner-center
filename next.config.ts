@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // 단일 폴더 패키지로 NAS 등 외부 환경 배포용
+  output: "standalone",
   experimental: {
     serverActions: {
       bodySizeLimit: "50mb",

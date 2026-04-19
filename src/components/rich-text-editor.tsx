@@ -7,6 +7,7 @@ import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Color } from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
+import { Image } from "@tiptap/extension-image";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -52,7 +53,12 @@ export default function RichTextEditor({
   name?: string;
   placeholder?: string;
 }) {
-  const hiddenRef = useRef<HTMLInputElement>(null);
+  const [html, setHtml] = useState<string>(value || "");
+  // 호버 중인 이미지의 화면상 위치 (floating 삭제 버튼 표시용)
+  const [hoverImage, setHoverImage] = useState<{
+    img: HTMLImageElement;
+    rect: DOMRect;
+  } | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -67,6 +73,9 @@ export default function RichTextEditor({
       Placeholder.configure({ placeholder }),
       TextStyle,
       Color,
+      Image.configure({
+        HTMLAttributes: { class: "rounded-lg my-2 max-w-full" },
+      }),
     ],
     content: value,
     immediatelyRender: false, // SSR 호환
@@ -77,9 +86,9 @@ export default function RichTextEditor({
       },
     },
     onUpdate({ editor }) {
-      const html = editor.getHTML();
-      if (hiddenRef.current) hiddenRef.current.value = html;
-      onChange?.(html);
+      const next = editor.getHTML();
+      setHtml(next);
+      onChange?.(next);
     },
   });
 
@@ -88,9 +97,58 @@ export default function RichTextEditor({
     if (!editor) return;
     if (value !== editor.getHTML()) {
       editor.commands.setContent(value || "", { emitUpdate: false });
-      if (hiddenRef.current) hiddenRef.current.value = value || "";
+      setHtml(value || "");
     }
   }, [value, editor]);
+
+  // 에디터 안 이미지 hover/leave → floating 삭제 버튼 위치 추적
+  useEffect(() => {
+    if (!editor) return;
+    const dom = editor.view.dom as HTMLElement;
+    function show(img: HTMLImageElement) {
+      setHoverImage({ img, rect: img.getBoundingClientRect() });
+    }
+    function onOver(e: MouseEvent) {
+      const t = e.target as HTMLElement;
+      if (t.tagName === "IMG") show(t as HTMLImageElement);
+    }
+    function onLeaveDom(e: MouseEvent) {
+      // 에디터 영역 자체를 벗어나면 닫기 (이미지 → 버튼 사이 공간 이동은 유지)
+      const next = e.relatedTarget as Node | null;
+      if (next && (dom.contains(next) || (next as HTMLElement).closest?.("[data-rte-img-overlay]"))) return;
+      setHoverImage(null);
+    }
+    dom.addEventListener("mouseover", onOver);
+    dom.addEventListener("mouseleave", onLeaveDom);
+    // 위치 업데이트 (스크롤/리사이즈 시 따라가도록)
+    function reposition() {
+      setHoverImage((cur) => {
+        if (!cur) return cur;
+        const r = cur.img.getBoundingClientRect();
+        // 이미지가 에디터 영역 밖으로 나가면 숨김
+        const editorRect = dom.getBoundingClientRect();
+        if (r.bottom < editorRect.top || r.top > editorRect.bottom) return null;
+        return { img: cur.img, rect: r };
+      });
+    }
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      dom.removeEventListener("mouseover", onOver);
+      dom.removeEventListener("mouseleave", onLeaveDom);
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [editor]);
+
+  function deleteHoveredImage() {
+    if (!editor || !hoverImage) return;
+    const pos = editor.view.posAtDOM(hoverImage.img, 0);
+    if (typeof pos === "number") {
+      editor.chain().focus().setNodeSelection(pos).deleteSelection().run();
+    }
+    setHoverImage(null);
+  }
 
   if (!editor) return null;
 
@@ -101,8 +159,33 @@ export default function RichTextEditor({
     >
       <Toolbar editor={editor} />
       <EditorContent editor={editor} />
-      {/* form submit용 hidden input */}
-      <input ref={hiddenRef} type="hidden" name={name} defaultValue={value} />
+      {/* form submit용 hidden input — controlled로 항상 최신 HTML 반영 */}
+      <input type="hidden" name={name} value={html} readOnly />
+      {/* 호버된 이미지의 floating 삭제 버튼 */}
+      {hoverImage && typeof window !== "undefined" && createPortal(
+        <button
+          type="button"
+          data-rte-img-overlay
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={deleteHoveredImage}
+          onMouseLeave={() => setHoverImage(null)}
+          title="이미지 삭제"
+          className="fixed z-[120] inline-flex items-center justify-center w-8 h-8 rounded-full text-white shadow-lg transition-transform hover:scale-105"
+          style={{
+            top: hoverImage.rect.top + 8,
+            left: hoverImage.rect.right - 36,
+            background: "rgba(220, 38, 38, 0.92)",
+            backdropFilter: "blur(4px)",
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+            <path d="M10 11v6M14 11v6" />
+          </svg>
+        </button>,
+        document.body,
+      )}
     </div>
   );
 }
@@ -112,8 +195,67 @@ function Toolbar({ editor }: { editor: Editor }) {
   const [colorOpen, setColorOpen] = useState(false);
   const colorBtnRef = useRef<HTMLDivElement>(null);
   const emojiBtnRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [colorPos, setColorPos] = useState<{ top: number; left: number } | null>(null);
   const [emojiPos, setEmojiPos] = useState<{ top: number; left: number } | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function uploadFile(file: File): Promise<{ url: string; name: string; isImage: boolean } | null> {
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error ?? "업로드에 실패했습니다.");
+        return null;
+      }
+      return (await res.json()) as { url: string; name: string; isImage: boolean };
+    } catch (e) {
+      alert("업로드 중 오류가 발생했습니다.");
+      console.error(e);
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget;
+    const files = input.files ? Array.from(input.files) : [];
+    input.value = "";
+    if (files.length === 0) return;
+    // 병렬 업로드 후 HTML 한 번에 삽입
+    const results = await Promise.all(files.map((f) => uploadFile(f)));
+    const html = results
+      .filter((r): r is { url: string; name: string; isImage: boolean } => !!r?.url)
+      .map((r) => `<p><img src="${r.url}" alt="${escapeAttr(r.name)}" /></p>`)
+      .join("");
+    if (html) {
+      editor.chain().focus().insertContent(html).run();
+    }
+  }
+
+  async function handleFilePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget;
+    const files = input.files ? Array.from(input.files) : [];
+    input.value = "";
+    if (files.length === 0) return;
+    const results = await Promise.all(files.map((f) => uploadFile(f)));
+    const html = results
+      .filter((r): r is { url: string; name: string; isImage: boolean } => !!r?.url)
+      .map((r) => `<p><a href="${r.url}" target="_blank" rel="noopener noreferrer">📎 ${escapeAttr(r.name)}</a></p>`)
+      .join("");
+    if (html) {
+      editor.chain().focus().insertContent(html).run();
+    }
+  }
+
+  function escapeAttr(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
 
   // 팝업: 버튼 중앙에 정렬 + viewport 양 끝 8px 안쪽으로 클램프
   function centerOnButton(rect: DOMRect, popWidth: number) {
@@ -217,6 +359,36 @@ function Toolbar({ editor }: { editor: Editor }) {
       <button type="button" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()} className={btn(false)} title="서식 지우기">
         ⌫
       </button>
+
+      {/* 이미지 업로드 */}
+      <button
+        type="button"
+        onClick={() => imageInputRef.current?.click()}
+        disabled={uploading}
+        className={btn(false) + " disabled:opacity-50"}
+        title="이미지 첨부"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <polyline points="21 15 16 10 5 21" />
+        </svg>
+      </button>
+      <input ref={imageInputRef} type="file" accept="image/*" hidden multiple onChange={handleImagePick} />
+
+      {/* 파일 첨부 */}
+      <button
+        type="button"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={uploading}
+        className={btn(false) + " disabled:opacity-50"}
+        title="파일 첨부"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+        </svg>
+      </button>
+      <input ref={fileInputRef} type="file" hidden multiple onChange={handleFilePick} />
 
       {/* 색상 */}
       <div ref={colorBtnRef} className="relative shrink-0">

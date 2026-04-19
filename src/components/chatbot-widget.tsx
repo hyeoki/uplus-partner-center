@@ -108,7 +108,7 @@ export default function ChatbotWidget() {
           {
             id: nextMessageId("assistant"),
             role: "assistant",
-            content: data.reply,
+            content: data.reply ?? "",
           },
         ]);
       } catch {

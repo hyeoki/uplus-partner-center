@@ -1,5 +1,7 @@
 generator client {
   provider = "prisma-client-js"
+  // Synology NAS(glibc 2.26) 호환 위해 musl 정적 링크 바이너리 포함
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-1.1.x"]
 }
 
 datasource db {
@@ -40,6 +42,7 @@ model User {
   comments   Comment[]
   sites      Site[]
   inquiries  Inquiry[]
+  archives   Archive[] @relation("ArchiveAuthor")
 }
 
 /**
@@ -229,6 +232,8 @@ model Archive {
   visibleRoles String?
   categoryId Int
   category   Category @relation(fields: [categoryId], references: [id])
+  authorId   String?
+  author     User?    @relation("ArchiveAuthor", fields: [authorId], references: [id])
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }

@@ -165,3 +165,65 @@
   pointer-events: none;
   height: 0;
 }
+
+/* 헤더 통합검색 입력란 펼침 애니메이션 — 우측에서 좌측으로 슉 */
+@keyframes searchExpand {
+  0%   { opacity: 0; transform: scaleX(0.4); }
+  100% { opacity: 1; transform: scaleX(1); }
+}
+
+/* TipTap 이미지 인라인 표시 */
+.tiptap-content img {
+  border-radius: 8px;
+  margin: 0.6em 0;
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* 이미지 라이트박스 페이드인 */
+@keyframes lightboxIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* 에디터 안 이미지 — 호버/선택 효과 */
+.tiptap-content .ProseMirror img,
+.tiptap-content img {
+  cursor: pointer;
+  transition: outline 0.15s, box-shadow 0.15s;
+}
+.tiptap-content img:hover {
+  outline: 2px solid rgba(230, 0, 126, 0.5);
+  outline-offset: 2px;
+}
+/* TipTap NodeSelection 적용 시 */
+.ProseMirror img.ProseMirror-selectednode,
+.ProseMirror-selectednode img {
+  outline: 2px solid #E6007E;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(230, 0, 126, 0.12);
+}
+
+/* RichTextView 이미지 호버 다운로드 버튼 */
+.rtv-img-wrap { position: relative; display: inline-block; cursor: zoom-in; line-height: 0; border-radius: 8px; overflow: hidden; }
+.rtv-img-download {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+.rtv-img-wrap:hover .rtv-img-download {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}

@@ -6,6 +6,7 @@ import { createNotice, deleteNotice, updateNotice } from "@/app/(dashboard)/noti
 import RoleAccessSelector from "@/components/role-access-selector";
 import RichTextEditor from "@/components/rich-text-editor";
 import RichTextView from "@/components/rich-text-view";
+import AttachmentsList from "@/components/attachments-list";
 import { getCategoryColor } from "@/lib/category-colors";
 
 interface Notice {
@@ -230,7 +231,7 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: "1px solid rgba(230,0,126,0.08)" }}>
-                {["태그", "제목", "작성일"].map((h) => (
+                {["태그", "제목", "작성자", "작성일"].map((h) => (
                   <th key={h} className="text-left py-4 px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>{h}</th>
                 ))}
               </tr>
@@ -238,7 +239,7 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
             <tbody>
               {filteredNotices.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="py-16 text-center text-sm" style={{ color: "#9ca3af" }}>
+                  <td colSpan={4} className="py-16 text-center text-sm" style={{ color: "#9ca3af" }}>
                     {q || tagFilter ? "검색 결과가 없습니다." : "등록된 공지사항이 없습니다."}
                   </td>
                 </tr>
@@ -269,7 +270,10 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
                           {notice.title}
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-xs whitespace-nowrap" style={{ color: "#9ca3af" }}>
+                      <td className="py-4 px-6 text-xs whitespace-nowrap w-32" style={{ color: "#4F4F4F" }}>
+                        {notice.author?.name ?? "-"}
+                      </td>
+                      <td className="py-4 px-6 text-xs whitespace-nowrap w-28" style={{ color: "#9ca3af" }}>
                         {new Date(notice.createdAt).toLocaleDateString("ko-KR")}
                       </td>
                     </tr>
@@ -378,6 +382,9 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
 
               {/* 본문 */}
               <RichTextView html={selected.content} className="text-[15px]" />
+
+              {/* 첨부파일 */}
+              <AttachmentsList html={selected.content} />
             </div>
           )}
 

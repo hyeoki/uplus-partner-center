@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { createArchive, deleteArchive, incrementDownload, updateArchive } from "@/app/(dashboard)/archive/actions";
 import RichTextEditor from "@/components/rich-text-editor";
 import RichTextView from "@/components/rich-text-view";
+import AttachmentsList, { hasBodyAttachments } from "@/components/attachments-list";
 import RoleAccessSelector from "@/components/role-access-selector";
 
 interface Category { id: number; name: string; colorId: string }
@@ -22,6 +23,7 @@ interface Archive {
   visibleRoles?: string | null;
   createdAt: Date;
   category: { id: number; name: string; colorId: string };
+  author?: { name: string; photoUrl?: string | null } | null;
 }
 
 interface Props {
@@ -203,12 +205,13 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
             <colgroup>
               <col style={{ width: "140px" }} />
               <col />
+              <col style={{ width: "110px" }} />
               <col style={{ width: "120px" }} />
               <col style={{ width: "100px" }} />
             </colgroup>
             <thead>
               <tr style={{ borderBottom: "1px solid rgba(230,0,126,0.08)" }}>
-                {["카테고리", "자료명", "등록일"].map((h) => (
+                {["카테고리", "자료명", "작성자", "등록일"].map((h) => (
                   <th key={h} className="text-left py-4 px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>{h}</th>
                 ))}
                 <th className="text-right py-4 px-6 font-medium text-[11px] uppercase tracking-wider" style={{ color: "#9ca3af" }}>다운로드</th>
@@ -217,7 +220,7 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
             <tbody>
               {filteredArchives.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-16 text-center" style={{ color: "#9ca3af" }}>
+                  <td colSpan={5} className="py-16 text-center" style={{ color: "#9ca3af" }}>
                     <div className="flex flex-col items-center gap-2">
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#e8e9ea" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
@@ -249,6 +252,9 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
                           {archive.ext && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium uppercase" style={{ background: "#e8e9ea", color: "#4F4F4F" }}>{archive.ext}</span>}
                           {archive.size && <span className="text-xs" style={{ color: "#9ca3af" }}>{archive.size}</span>}
                         </div>
+                      </td>
+                      <td className="py-4 px-6 text-xs whitespace-nowrap truncate" style={{ color: "#4F4F4F" }}>
+                        {archive.author?.name ?? "-"}
                       </td>
                       <td className="py-4 px-6 text-xs whitespace-nowrap" style={{ color: "#9ca3af" }}>
                         {new Date(archive.createdAt).toLocaleDateString("ko-KR")}
@@ -365,10 +371,29 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
                 </span>
               </div>
 
+              {/* 작성자 byline */}
+              <div className="flex items-center gap-3">
+                <ArchiveAvatar
+                  name={selected.author?.name ?? "관리자"}
+                  photoUrl={selected.author?.photoUrl}
+                />
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold leading-tight" style={{ color: "#1A1C1E" }}>
+                    {selected.author?.name ?? "관리자"}
+                  </div>
+                  <div className="text-xs mt-0.5" style={{ color: "#9ca3af" }}>
+                    {new Date(selected.createdAt).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
+                  </div>
+                </div>
+              </div>
+
               {/* 본문 (있을 때만) */}
               {selected.content && (
                 <RichTextView html={selected.content} className="text-[15px]" />
               )}
+
+              {/* 본문에 첨부된 파일들 */}
+              <AttachmentsList html={selected.content} />
 
               {/* 첨부 파일 카드 */}
               {selected.url ? (
@@ -396,7 +421,7 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
                     다운로드
                   </button>
                 </div>
-              ) : (
+              ) : !hasBodyAttachments(selected.content) ? (
                 <div
                   className="flex items-center justify-center gap-2 px-4 py-6 rounded-2xl"
                   style={{ background: "#fafbfc", border: "1px dashed #e8e9ea", color: "#9ca3af" }}
@@ -407,7 +432,7 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
                   </svg>
                   <span className="text-xs">첨부 파일이 없습니다</span>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
 
@@ -518,6 +543,32 @@ function Field({ label, required, children }: { label: string; required?: boolea
         {label}{required && <span className="ml-0.5" style={{ color: "#E6007E" }}>*</span>}
       </label>
       {children}
+    </div>
+  );
+}
+
+function ArchiveAvatar({ name, photoUrl }: { name: string; photoUrl?: string | null }) {
+  const initial = (name || "?").charAt(0).toUpperCase();
+  if (photoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={photoUrl}
+        alt={name}
+        className="w-9 h-9 shrink-0 rounded-full object-cover"
+        style={{ background: "#f3f4f5" }}
+      />
+    );
+  }
+  return (
+    <div
+      className="w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-sm font-semibold text-white"
+      style={{
+        background: "linear-gradient(135deg, #E6007E 0%, #ff5fa6 100%)",
+        fontFamily: "var(--font-display)",
+      }}
+    >
+      {initial}
     </div>
   );
 }

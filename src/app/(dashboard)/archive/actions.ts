@@ -6,9 +6,11 @@ import { revalidatePath } from "next/cache";
 import path from "path";
 import { encodeRoles } from "@/lib/role-access";
 import { isCurrentUserAdmin } from "@/lib/admin";
+import { auth } from "@/lib/auth";
 
 export async function createArchive(formData: FormData) {
   if (!(await isCurrentUserAdmin())) return { error: "관리자 권한이 필요합니다." };
+  const session = await auth();
 
   const title = formData.get("title") as string;
   const categoryId = Number(formData.get("categoryId"));
@@ -60,6 +62,7 @@ export async function createArchive(formData: FormData) {
       fileName,
       visibleRoles,
       downloads: 0,
+      authorId: session?.user?.id ?? null,
     },
   });
 

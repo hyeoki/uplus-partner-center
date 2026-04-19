@@ -270,8 +270,8 @@ export default async function HomePage() {
         className="rounded-2xl p-7 lg:order-2"
         style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25, 28, 29, 0.06)" }}
       >
-        <div className="flex justify-between items-center mb-5">
-          <div>
+        <div className="flex justify-between items-start gap-3 mb-5">
+          <div className="min-w-0">
             <h3
               className="text-sm font-semibold"
               style={{ fontFamily: "var(--font-display)", color: "#1A1C1E" }}
@@ -285,7 +285,7 @@ export default async function HomePage() {
           {expiringPocCount > 5 ? (
             <Link
               href="/customers?filter=poc-expiring"
-              className="text-xs transition-colors hover:text-[#E6007E]"
+              className="shrink-0 whitespace-nowrap text-xs transition-colors hover:text-[#E6007E]"
               style={{ color: "#9ca3af" }}
             >
               더보기 &rsaquo;
@@ -293,7 +293,7 @@ export default async function HomePage() {
           ) : (
             expiringPocCount > 0 && (
               <span
-                className="text-[11px] px-2 py-1 rounded-md font-semibold"
+                className="shrink-0 whitespace-nowrap text-[11px] px-2 py-1 rounded-md font-semibold"
                 style={{ background: "rgba(230,0,126,0.08)", color: "#E6007E" }}
               >
                 {expiringPocCount}건

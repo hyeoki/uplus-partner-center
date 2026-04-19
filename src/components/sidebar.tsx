@@ -172,16 +172,14 @@ export default function Sidebar({
                 href={item.href}
                 title={collapsed ? item.label : undefined}
                 className={
-                  collapsed
-                    ? "flex items-center justify-center w-10 h-10 rounded-xl transition-all mx-auto"
-                    : "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm flex-1 transition-all"
+                  (collapsed
+                    ? "flex items-center justify-center w-10 h-10 rounded-xl mx-auto"
+                    : "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm flex-1") +
+                  " transition-colors duration-150 " +
+                  (isActive
+                    ? "bg-white text-[#E6007E] font-semibold shadow-[0px_4px_12px_rgba(25,28,29,0.05)]"
+                    : "text-[#4F4F4F] hover:bg-white/70 hover:text-[#E6007E]")
                 }
-                style={{
-                  background: isActive ? "#ffffff" : "transparent",
-                  color: isActive ? "#E6007E" : "#4F4F4F",
-                  fontWeight: isActive ? 600 : 400,
-                  boxShadow: isActive ? "0px 4px 12px rgba(25, 28, 29, 0.05)" : "none",
-                }}
               >
                 <svg
                   width="17"
