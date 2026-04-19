@@ -14,7 +14,6 @@ const BASE_URL = process.env.NAS_BASE_URL!;
 const USER = process.env.NAS_USER!;
 const PASSWORD = process.env.NAS_PASSWORD!;
 const UPLOAD_PATH = process.env.NAS_UPLOAD_PATH!;
-const PUBLIC_BASE_URL = process.env.NAS_PUBLIC_BASE_URL!;
 
 type SynologyResponse<T> = {
   success: boolean;
@@ -23,7 +22,7 @@ type SynologyResponse<T> = {
 };
 
 function assertEnv() {
-  if (!BASE_URL || !USER || !PASSWORD || !UPLOAD_PATH || !PUBLIC_BASE_URL) {
+  if (!BASE_URL || !USER || !PASSWORD || !UPLOAD_PATH) {
     throw new Error("[nas] NAS_* 환경변수가 누락되었습니다.");
   }
 }
@@ -114,18 +113,17 @@ async function uploadFile(
 }
 
 /**
- * 업로드한 파일의 공개 다운로드 URL을 만든다.
+ * 업로드한 파일의 다운로드 URL.
  *
- * 업로드 경로가 NAS의 Web Station 루트(`/web/...`) 아래에 있으면
- * `https://{host}/{name}/{dir}/{file}` 형태로 인증 없이 직접 접근 가능하므로
- * Synology 공유링크(랜딩 페이지) 대신 이 직링크를 반환한다.
+ * 앱 자체의 `/api/files/...` 프록시를 경유한다 (Web Station 의존 제거).
+ * NAS_UPLOAD_PATH 가 개인 홈 등 Web Station 외부에 있어도 접근 가능.
+ * 같은 머신에 배포된 경우 fs로 직접 스트리밍하므로 오버헤드 작음.
  *
- * cross-origin 환경에서는 브라우저가 <a download> attribute를 무시하므로
- * URL의 마지막 segment(=실제 파일명)가 그대로 다운로드 파일명이 된다.
- * 따라서 한글이 포함된 원본 파일명을 그대로 보존하는 것이 중요하다.
+ * URL 마지막 segment가 파일명이라 한글 원본명 보존되며,
+ * 응답 Content-Disposition에 RFC5987 인코딩으로 다시 명시한다.
  */
 function publicUrlFor(dir: string, fileName: string): string {
-  return `${PUBLIC_BASE_URL.replace(/\/$/, "")}/${encodeURIComponent(dir)}/${encodeURIComponent(fileName)}`;
+  return `/api/files/${encodeURIComponent(dir)}/${encodeURIComponent(fileName)}`;
 }
 
 /**
@@ -139,6 +137,43 @@ function publicUrlFor(dir: string, fileName: string): string {
  * - shareUrl: 브라우저에서 바로 다운로드 가능한 직링크 (Web Station 경유)
  * - nasPath: NAS 내부 절대경로 (관리/추적용)
  */
+/**
+ * FileStation Download API로 파일을 가져와 ReadableStream으로 반환.
+ * 같은 머신이 아닌 환경(dev 등)에서 NAS 파일에 접근하기 위한 용도.
+ */
+export async function downloadFromNas(
+  absolutePath: string,
+): Promise<{ stream: ReadableStream<Uint8Array>; size?: number }> {
+  assertEnv();
+  const sid = await login();
+  const params = new URLSearchParams({
+    api: "SYNO.FileStation.Download",
+    version: "2",
+    method: "download",
+    path: absolutePath,
+    mode: "open",
+    _sid: sid,
+  });
+  const res = await fetch(`${BASE_URL}/webapi/entry.cgi?${params}`, { cache: "no-store" });
+  if (!res.ok || !res.body) {
+    await logout(sid);
+    throw new Error(`[nas] download HTTP ${res.status} (${absolutePath})`);
+  }
+  // 응답 다 흘려보낸 뒤 logout
+  const sizeHeader = res.headers.get("content-length");
+  const size = sizeHeader ? Number(sizeHeader) : undefined;
+  const [a, b] = res.body.tee();
+  void (async () => {
+    try {
+      const reader = b.getReader();
+      while (!(await reader.read()).done) { /* drain */ }
+    } finally {
+      await logout(sid);
+    }
+  })();
+  return { stream: a, size };
+}
+
 export async function uploadAndShare(
   buffer: Buffer,
   fileName: string,
