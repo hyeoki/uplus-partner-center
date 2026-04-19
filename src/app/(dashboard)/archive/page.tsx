@@ -20,8 +20,10 @@ export default async function ArchivePage({
     : null;
   const myRoles = parseRoleNamesField(me?.roleNames);
   const isAdmin = me?.role === "admin";
-  const roleFilter =
-    myRoles.length > 0
+  // admin은 모든 자료 조회 가능 (visibleRoles 필터 우회)
+  const roleFilter = isAdmin
+    ? {}
+    : myRoles.length > 0
       ? {
           OR: [
             { visibleRoles: null },

@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef, useTransition, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { createArchive, deleteArchive, incrementDownload, updateArchive } from "@/app/(dashboard)/archive/actions";
+import RichTextEditor from "@/components/rich-text-editor";
+import RichTextView from "@/components/rich-text-view";
 import RoleAccessSelector from "@/components/role-access-selector";
 
 interface Category { id: number; name: string; colorId: string }
@@ -365,12 +367,7 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
 
               {/* 본문 (있을 때만) */}
               {selected.content && (
-                <p
-                  className="text-[15px] whitespace-pre-wrap"
-                  style={{ color: "#1A1C1E", lineHeight: 1.7 }}
-                >
-                  {selected.content}
-                </p>
+                <RichTextView html={selected.content} className="text-[15px]" />
               )}
 
               {/* 첨부 파일 카드 */}
@@ -443,10 +440,11 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
               </Field>
 
               <Field label="내용">
-                <textarea
-                  name="content" rows={4} placeholder="자료에 대한 설명을 입력하세요"
-                  defaultValue={drawerMode === "edit" ? selected?.content ?? "" : ""}
-                  className="w-full px-3.5 py-2.5 text-sm rounded-xl outline-none transition-all resize-none" style={{ background: "#f8f9fa", color: "#1A1C1E", border: "1.5px solid transparent", lineHeight: "1.6" }} onFocus={(e) => (e.currentTarget.style.borderColor = "#E6007E")} onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")} />
+                <RichTextEditor
+                  name="content"
+                  value={drawerMode === "edit" ? selected?.content ?? "" : ""}
+                  placeholder="자료에 대한 설명을 입력하세요"
+                />
               </Field>
 
               {drawerMode === "edit" && selected?.fileName && (

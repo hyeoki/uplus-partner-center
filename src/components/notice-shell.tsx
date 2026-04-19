@@ -4,6 +4,8 @@ import { useEffect, useState, useRef, useTransition, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { createNotice, deleteNotice, updateNotice } from "@/app/(dashboard)/notice/actions";
 import RoleAccessSelector from "@/components/role-access-selector";
+import RichTextEditor from "@/components/rich-text-editor";
+import RichTextView from "@/components/rich-text-view";
 import { getCategoryColor } from "@/lib/category-colors";
 
 interface Notice {
@@ -375,12 +377,7 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
               </div>
 
               {/* 본문 */}
-              <p
-                className="text-[15px] whitespace-pre-wrap"
-                style={{ color: "#1A1C1E", lineHeight: 1.7 }}
-              >
-                {selected.content}
-              </p>
+              <RichTextView html={selected.content} className="text-[15px]" />
             </div>
           )}
 
@@ -458,13 +455,10 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
 
               {/* 내용 */}
               <FormField label="내용" required>
-                <textarea
-                  name="content" required rows={7} placeholder="공지 내용을 입력하세요"
-                  defaultValue={drawerMode === "edit" ? selected?.content : ""}
-                  className="w-full px-3.5 py-2.5 text-sm rounded-xl outline-none transition-all resize-none"
-                  style={{ background: "#f8f9fa", color: "#1A1C1E", border: "1.5px solid transparent", lineHeight: "1.7" }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = "#E6007E")}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
+                <RichTextEditor
+                  name="content"
+                  value={drawerMode === "edit" ? selected?.content ?? "" : ""}
+                  placeholder="공지 내용을 입력하세요"
                 />
               </FormField>
 

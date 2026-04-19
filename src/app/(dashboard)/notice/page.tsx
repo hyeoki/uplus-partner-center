@@ -19,8 +19,10 @@ export default async function NoticePage() {
   // 조회 권한 필터:
   //   - visibleRoles가 null/empty: 전체 공개 → 항상 노출
   //   - 그 외: 본인 역할 중 하나라도 매칭되면 노출 (",role,"로 contains)
-  const roleFilter =
-    myRoles.length > 0
+  // admin은 모든 공지 조회 가능
+  const roleFilter = isAdmin
+    ? {}
+    : myRoles.length > 0
       ? {
           OR: [
             { visibleRoles: null },
