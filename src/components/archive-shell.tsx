@@ -489,6 +489,7 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
                 <AttachmentsList
                   html={selected.content}
                   primary={selected.url ? { url: selected.url, name: selected.fileName ?? selected.title } : null}
+                  onDownload={() => incrementDownload(selected.id)}
                 />
               ) : (
                 <div

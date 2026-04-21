@@ -227,7 +227,6 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
               <Th>사이트</Th>
               <Th>서버</Th>
               <Th>제품</Th>
-              <Th>라이선스 요약</Th>
               <Th align="right">동시접속(활성)</Th>
               <Th align="right" style={{ width: 60 }}> </Th>
             </tr>
@@ -235,7 +234,7 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
           <tbody>
             {filteredSites.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-sm" style={{ color: "#9ca3af" }}>
+                <td colSpan={5} className="px-5 py-10 text-center text-sm" style={{ color: "#9ca3af" }}>
                   조건에 맞는 사이트가 없습니다.
                 </td>
               </tr>
@@ -248,7 +247,6 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
                     : null;
                 const isOpen = expanded.has(s.id);
                 const lics = s.matchedLicenses;
-                const activeCount = lics.filter((l) => l.licenseStatus === true).length;
                 const sessionTotal = lics
                   .filter((l) => l.licenseStatus === true)
                   .reduce((sum, l) => sum + (l.sessionCount ?? 0), 0);
@@ -324,15 +322,6 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
                           <Dash />
                         )}
                       </Td>
-                      <Td>
-                        {lics.length === 0 ? (
-                          <span className="text-xs" style={{ color: "#c4c7ca" }}>라이선스 없음</span>
-                        ) : (
-                          <span className="text-xs" style={{ color: "#4F4F4F" }}>
-                            {lics.length}건 (활성 {activeCount})
-                          </span>
-                        )}
-                      </Td>
                       <Td align="right">
                         <span className="font-medium" style={{ color: "#1A1C1E" }}>
                           {sessionTotal.toLocaleString("ko-KR")}
@@ -343,118 +332,109 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
                       </Td>
                     </tr>
 
-                    {/* Expanded license rows */}
-                    {isOpen && lics.length > 0 && (
+                    {/* Expanded license cards */}
+                    {isOpen && (
                       <tr style={{ borderBottom: "1px solid #f3f4f5", background: "#fafbfc" }}>
-                        <td colSpan={6} className="px-6 py-3">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr style={{ borderBottom: "1px solid #edeeef" }}>
-                                <SubTh>구분</SubTh>
-                                <SubTh>라이선스</SubTh>
-                                <SubTh>요금제</SubTh>
-                                <SubTh align="right">동시접속</SubTh>
-                                <SubTh align="right">시작일</SubTh>
-                                <SubTh align="right">만료일</SubTh>
-                                <SubTh align="right">활성상태</SubTh>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {lics.map((l) => {
-                                const licColor =
-                                  l.licenseColor ||
-                                  (l.licenseType ? LICENSE_FALLBACK[l.licenseType] : null) ||
-                                  "#9ca3af";
-                                const tColor = l.siteLicenseType ? TYPE_COLOR[l.siteLicenseType] : null;
-                                const end = l.endDate ? new Date(l.endDate) : null;
-                                const start = l.startDate ? new Date(l.startDate) : null;
-                                const isActive = l.licenseStatus === true;
-                                return (
-                                  <tr key={l.id} style={{ borderBottom: "1px solid #f3f4f5" }}>
-                                    <SubTd>
-                                      {l.siteLicenseType && tColor ? (
-                                        <span
-                                          className="text-[10px] px-2 py-0.5 rounded-md font-semibold"
-                                          style={{ background: tColor.bg, color: tColor.color }}
-                                        >
-                                          {l.siteLicenseType}
+                        <td colSpan={5} className="px-6 py-5">
+                          {lics.length === 0 ? (
+                            <p className="text-xs text-center py-4" style={{ color: "#9ca3af" }}>
+                              라이선스가 없습니다.
+                            </p>
+                          ) : (
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr style={{ borderBottom: "1px solid #edeeef" }}>
+                                  <th className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-medium whitespace-nowrap" style={{ color: "#9ca3af" }}>구분</th>
+                                  <th className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-medium whitespace-nowrap" style={{ color: "#9ca3af" }}>요금제</th>
+                                  <th className="px-3 py-2 text-right text-[10px] uppercase tracking-wider font-medium whitespace-nowrap" style={{ color: "#9ca3af" }}>동시접속</th>
+                                  <th className="px-3 py-2 text-right text-[10px] uppercase tracking-wider font-medium whitespace-nowrap" style={{ color: "#9ca3af" }}>기간</th>
+                                  <th className="px-3 py-2 text-right text-[10px] uppercase tracking-wider font-medium whitespace-nowrap" style={{ color: "#9ca3af" }}>활성</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {lics.map((l, idx) => {
+                                  const licColor =
+                                    l.licenseColor ||
+                                    (l.licenseType ? LICENSE_FALLBACK[l.licenseType] : null) ||
+                                    "#9ca3af";
+                                  const tColor = l.siteLicenseType ? TYPE_COLOR[l.siteLicenseType] : null;
+                                  const end = l.endDate ? new Date(l.endDate) : null;
+                                  const start = l.startDate ? new Date(l.startDate) : null;
+                                  const isActive = l.licenseStatus === true;
+                                  const fmtDate = (d: Date | null) =>
+                                    d ? d.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\.$/, "") : "—";
+                                  return (
+                                    <tr
+                                      key={l.id}
+                                      style={{ borderBottom: idx === lics.length - 1 ? "none" : "1px solid #f3f4f5" }}
+                                    >
+                                      {/* 구분 + 라이선스 뱃지 한 셀 */}
+                                      <td className="px-3 py-2.5 whitespace-nowrap">
+                                        <div className="flex items-center gap-1.5">
+                                          {l.siteLicenseType && tColor ? (
+                                            <span
+                                              className="text-[10px] px-2 py-0.5 rounded-md font-semibold"
+                                              style={{ background: tColor.bg, color: tColor.color }}
+                                            >
+                                              {l.siteLicenseType}
+                                            </span>
+                                          ) : null}
+                                          {l.licenseName && (
+                                            <span
+                                              className="text-[10px] px-2 py-0.5 rounded-md font-semibold"
+                                              style={{ background: withAlpha(licColor, 0.12), color: licColor }}
+                                            >
+                                              {l.licenseName}
+                                            </span>
+                                          )}
+                                          {!l.siteLicenseType && !l.licenseName && <Dash />}
+                                        </div>
+                                      </td>
+                                      {/* 요금제 */}
+                                      <td className="px-3 py-2.5">
+                                        {l.plan ? (
+                                          <span className="text-sm" style={{ color: "#1A1C1E" }} title={l.plan}>
+                                            {l.plan}
+                                          </span>
+                                        ) : (
+                                          <Dash />
+                                        )}
+                                      </td>
+                                      {/* 동시접속 */}
+                                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                                        <span className="text-sm font-medium" style={{ color: "#1A1C1E" }}>
+                                          {l.sessionCount ?? "—"}
                                         </span>
-                                      ) : (
-                                        <Dash />
-                                      )}
-                                    </SubTd>
-                                    <SubTd>
-                                      {l.licenseName ? (
-                                        <span
-                                          className="text-[10px] px-2 py-0.5 rounded-md font-semibold"
-                                          style={{
-                                            background: withAlpha(licColor, 0.12),
-                                            color: licColor,
-                                          }}
-                                        >
-                                          {l.licenseName}
+                                      </td>
+                                      {/* 기간 */}
+                                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                                        <span className="text-xs" style={{ color: "#4F4F4F" }}>
+                                          {fmtDate(start)} ~ {fmtDate(end)}
                                         </span>
-                                      ) : (
-                                        <Dash />
-                                      )}
-                                    </SubTd>
-                                    <SubTd>
-                                      {l.plan ? (
-                                        <span className="text-xs" style={{ color: "#1A1C1E" }} title={l.plan}>
-                                          {l.plan}
-                                        </span>
-                                      ) : (
-                                        <Dash />
-                                      )}
-                                    </SubTd>
-                                    <SubTd align="right">
-                                      <span style={{ color: "#1A1C1E" }}>
-                                        {l.sessionCount ?? "—"}
-                                      </span>
-                                    </SubTd>
-                                    <SubTd align="right">
-                                      <span className="text-xs" style={{ color: "#9ca3af" }}>
-                                        {start
-                                          ? start.toLocaleDateString("ko-KR", {
-                                              year: "numeric",
-                                              month: "2-digit",
-                                              day: "2-digit",
-                                            })
-                                          : "—"}
-                                      </span>
-                                    </SubTd>
-                                    <SubTd align="right">
-                                      <span className="text-xs" style={{ color: "#9ca3af" }}>
-                                        {end
-                                          ? end.toLocaleDateString("ko-KR", {
-                                              year: "numeric",
-                                              month: "2-digit",
-                                              day: "2-digit",
-                                            })
-                                          : "—"}
-                                      </span>
-                                    </SubTd>
-                                    <SubTd align="right">
-                                      {l.licenseStatus == null ? (
-                                        <Dash />
-                                      ) : (
-                                        <span
-                                          className="inline-flex items-center gap-1 text-[11px]"
-                                          style={{ color: isActive ? "#16a34a" : "#9ca3af" }}
-                                        >
+                                      </td>
+                                      {/* 활성 */}
+                                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                                        {l.licenseStatus == null ? (
+                                          <Dash />
+                                        ) : (
                                           <span
-                                            className="inline-block w-1.5 h-1.5 rounded-full"
-                                            style={{ background: isActive ? "#16a34a" : "#c4c7ca" }}
-                                          />
-                                          {isActive ? "활성" : "비활성"}
-                                        </span>
-                                      )}
-                                    </SubTd>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
+                                            className="inline-flex items-center gap-1 text-[11px]"
+                                            style={{ color: isActive ? "#16a34a" : "#9ca3af" }}
+                                          >
+                                            <span
+                                              className="inline-block w-1.5 h-1.5 rounded-full"
+                                              style={{ background: isActive ? "#16a34a" : "#c4c7ca" }}
+                                            />
+                                            {isActive ? "활성" : "비활성"}
+                                          </span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          )}
                         </td>
                       </tr>
                     )}
@@ -496,25 +476,6 @@ function Th({
 function Td({ children, align }: { children: React.ReactNode; align?: "right" }) {
   return (
     <td className="px-4 py-3 whitespace-nowrap" style={{ textAlign: align ?? "left" }}>
-      {children}
-    </td>
-  );
-}
-
-function SubTh({ children, align }: { children: React.ReactNode; align?: "right" }) {
-  return (
-    <th
-      className="px-3 py-2 text-[10px] uppercase tracking-wider font-medium whitespace-nowrap"
-      style={{ color: "#9ca3af", textAlign: align ?? "left" }}
-    >
-      {children}
-    </th>
-  );
-}
-
-function SubTd({ children, align }: { children: React.ReactNode; align?: "right" }) {
-  return (
-    <td className="px-3 py-2 whitespace-nowrap" style={{ textAlign: align ?? "left" }}>
       {children}
     </td>
   );

@@ -12,10 +12,13 @@ type Attachment = { url: string; name: string; isImage: boolean };
 export default function AttachmentsList({
   html,
   primary,
+  onDownload,
 }: {
   html: string | null | undefined;
   /** 메인 첨부파일 (Archive.url 등) — 있으면 리스트 맨 앞에 함께 표시 */
   primary?: { url: string; name: string } | null;
+  /** 다운로드 버튼 클릭 시 호출 — 자료실의 다운로드 카운트 증가용 */
+  onDownload?: (url: string, name: string) => void;
 }) {
   const attachments = useMemo<Attachment[]>(() => {
     const body = extractAttachments(html);
@@ -96,7 +99,10 @@ export default function AttachmentsList({
               rel="noopener noreferrer"
               title="다운로드"
               className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownload?.(a.url, a.name);
+              }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -126,7 +132,10 @@ export default function AttachmentsList({
             href={lightboxSrc}
             download
             rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDownload?.(lightboxSrc, lightboxSrc.split("/").pop() ?? "");
+            }}
             title="다운로드"
             className="absolute top-5 right-16 w-10 h-10 flex items-center justify-center rounded-full transition-colors hover:bg-white/20"
             style={{ background: "rgba(255,255,255,0.12)", color: "#fff" }}
