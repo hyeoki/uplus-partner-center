@@ -43,6 +43,23 @@ model User {
   sites      Site[]
   inquiries  Inquiry[]
   archives   Archive[] @relation("ArchiveAuthor")
+  visits     Visit[]
+}
+
+/**
+ * 방문 로그 — 로그인 1건당 1행 추가.
+ * /system 의 방문 통계에서 일일/주간 방문자 수, 최근 방문 목록 조회용.
+ */
+model Visit {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 /**

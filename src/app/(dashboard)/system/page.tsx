@@ -4,6 +4,7 @@ import { isCurrentUserAdmin } from "@/lib/admin";
 import SystemChatbotSettings from "@/components/system-chatbot-settings";
 import CategoryManager from "@/components/category-manager";
 import TagManager from "@/components/tag-manager";
+import VisitStats from "@/components/visit-stats";
 import { getChatbotSettings, maskApiKey } from "@/lib/chatbot-settings";
 
 export default async function SystemPage() {
@@ -42,6 +43,8 @@ export default async function SystemPage() {
           자료실 카테고리 및 시스템 설정을 관리합니다.
         </p>
       </div>
+
+      <VisitStats />
 
       <SystemChatbotSettings
         defaultAgent={chatbotSettings.agent}

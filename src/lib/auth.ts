@@ -436,6 +436,24 @@ async function syncSiteLicensesBackground(
   }
 }
 
+/** 로그인 성공 시 Visit 1행 기록. IP/UA는 요청 헤더에서 추출 (X-Forwarded-For 우선). */
+async function recordVisit(userId: string, request?: Request): Promise<void> {
+  let ipAddress: string | null = null;
+  let userAgent: string | null = null;
+  if (request) {
+    const fwd = request.headers.get("x-forwarded-for");
+    ipAddress = fwd ? fwd.split(",")[0].trim() : request.headers.get("x-real-ip");
+    userAgent = request.headers.get("user-agent");
+  }
+  await prisma.visit.create({
+    data: {
+      userId,
+      ipAddress: ipAddress ?? undefined,
+      userAgent: userAgent ?? undefined,
+    },
+  });
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
   providers: [
@@ -444,7 +462,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         loginId: { label: "아이디", type: "text" },
         password: { label: "비밀번호", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const loginId = credentials.loginId as string;
         const password = credentials.password as string;
         if (!loginId || !password) return null;
@@ -574,6 +592,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 }
               })();
 
+              // 방문 로그 — fire-and-forget
+              recordVisit(user.id, request).catch((e) =>
+                console.error("[auth] recordVisit error:", e),
+              );
+
               return { id: user.id, name: user.name, email: user.loginId };
             }
 
@@ -595,6 +618,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           const user = await prisma.user.findUnique({ where: { loginId } });
           if (user && user.password !== "" && user.password === password) {
+            recordVisit(user.id, request).catch((e) =>
+              console.error("[auth] recordVisit error:", e),
+            );
             return { id: user.id, name: user.name, email: user.loginId };
           }
         } catch (err) {
