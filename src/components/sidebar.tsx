@@ -386,7 +386,8 @@ function ProfileMenu({
             type="button"
             onClick={() => {
               setOpen(false);
-              signOut({ callbackUrl: "/" });
+              // 현재 origin 기준으로 redirect → 로컬은 localhost/0.0.0.0:3000, 운영은 partners.hi-rtk.io
+              signOut({ callbackUrl: `${window.location.origin}/` });
             }}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors w-full text-left"
             style={{ color: "#dc2626" }}
