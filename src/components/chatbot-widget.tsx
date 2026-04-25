@@ -50,7 +50,9 @@ export default function ChatbotWidget() {
 
   useEffect(() => {
     if (!open) return;
-    inputRef.current?.focus();
+    // 모바일에선 자동 포커스 X — 열자마자 키보드 올라와서 화면 가림
+    const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+    if (!isMobile) inputRef.current?.focus();
   }, [open]);
 
   function nextMessageId(prefix: string) {
@@ -303,12 +305,19 @@ export default function ChatbotWidget() {
           }}
           aria-label="챗봇 열기"
         >
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M7 10h10M7 14h6" strokeLinecap="round" />
-            <path
-              d="M12 3C6.477 3 2 6.91 2 11.733c0 2.15.889 4.118 2.365 5.641L4 21l3.93-1.855A11.54 11.54 0 0 0 12 19.467c5.523 0 10-3.91 10-8.734C22 6.91 17.523 3 12 3Z"
-              strokeLinejoin="round"
-            />
+          {/* 챗봇 — 말풍선 안에 로봇 얼굴 (로봇이랑 채팅하는 느낌) */}
+          <svg width="30" height="30" viewBox="0 0 28 28" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            {/* 안테나 */}
+            <line x1="14" y1="2" x2="14" y2="4.5" />
+            <circle cx="14" cy="2" r="1" fill="currentColor" stroke="none" />
+            {/* 말풍선 (로봇 머리 역할 겸함) — 우측 하단 꼬리 */}
+            <path d="M5 6 h18 a2 2 0 0 1 2 2 v9 a2 2 0 0 1 -2 2 h-7 l-3.5 3 v-3 h-7.5 a2 2 0 0 1 -2 -2 v-9 a2 2 0 0 1 2 -2 z" />
+            {/* 눈 (반짝이는 큰 동공) */}
+            <circle cx="10.5" cy="12" r="1.6" fill="currentColor" stroke="none" />
+            <circle cx="17.5" cy="12" r="1.6" fill="currentColor" stroke="none" />
+            {/* 사이드 이어 (안테나 라인) */}
+            <line x1="2" y1="11" x2="2" y2="14" />
+            <line x1="26" y1="11" x2="26" y2="14" />
           </svg>
         </button>
         )}

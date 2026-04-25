@@ -72,8 +72,9 @@ export default function TopHeaderBar() {
 
       <a
         href="/inquiry?compose=1"
-        className="pointer-events-auto flex-1 min-w-0 flex items-center justify-center gap-2.5 px-4 md:px-6 h-10 rounded-full text-sm transition-all hover:-translate-y-0.5 hover:shadow-md backdrop-blur-md"
+        className="pointer-events-auto flex-1 flex items-center justify-center gap-2 md:gap-2.5 px-3 md:px-6 h-10 rounded-full text-sm transition-all hover:-translate-y-0.5 hover:shadow-md backdrop-blur-md overflow-hidden"
         style={{
+          minWidth: "70px",
           background: bannerBg,
           color: "#7a1148",
           border: "1px solid rgba(230, 0, 126, 0.18)",
@@ -86,7 +87,7 @@ export default function TopHeaderBar() {
         >
           BETA
         </span>
-        <span className="truncate">
+        <span className="truncate min-w-0">
           {/* 모바일: 짧은 문구 */}
           <span className="md:hidden">
             <span className="font-semibold underline underline-offset-2" style={{ color: "#E6007E" }}>

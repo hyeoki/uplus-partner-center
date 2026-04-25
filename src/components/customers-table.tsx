@@ -158,7 +158,7 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
       {/* Filters */}
       {/* 필터 */}
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative shrink-0" style={{ width: "240px" }}>
+        <div className="relative shrink-0 w-full md:w-[240px]">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
           </svg>
@@ -173,7 +173,7 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
             onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
           />
         </div>
-        <div className="w-px h-5 shrink-0" style={{ background: "#e8e9ea" }} />
+        <div className="hidden md:block w-px h-5 shrink-0" style={{ background: "#e8e9ea" }} />
 
         <Select value={serverFilter} onChange={setServerFilter} label="서버">
           <option value="all">서버 전체</option>
@@ -216,17 +216,171 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
         </p>
       )}
 
-      {/* Table */}
+      {/* 모바일: 카드 리스트 */}
+      <div className="md:hidden space-y-2.5">
+        {filteredSites.length === 0 ? (
+          <div
+            className="rounded-2xl px-5 py-10 text-center text-sm"
+            style={{ background: "#ffffff", color: "#9ca3af", boxShadow: "0px 12px 32px rgba(25, 28, 29, 0.06)" }}
+          >
+            조건에 맞는 사이트가 없습니다.
+          </div>
+        ) : (
+          filteredSites.map((s) => {
+            const externalUrl = s.productHost && s.name
+              ? `https://${s.name}.${s.productHost}${s.productContextPath ?? ""}`
+              : null;
+            const isOpen = expanded.has(s.id);
+            const lics = s.matchedLicenses;
+            const sessionTotal = lics.filter((l) => l.licenseStatus === true).reduce((sum, l) => sum + (l.sessionCount ?? 0), 0);
+            const isHighlighted = highlightId === s.id;
+            const serverColor = SERVER_COLOR[s.server] ?? { bg: "#edeeef", color: "#4F4F4F" };
+            const serverLabel = SERVER_LABEL[s.server] ?? s.server;
+            return (
+              <div
+                key={s.id}
+                ref={(el) => { rowRefs.current.set(s.id, el); }}
+                className="rounded-2xl"
+                style={{
+                  background: isHighlighted ? "rgba(230,0,126,0.04)" : "#ffffff",
+                  boxShadow: "0px 8px 24px rgba(25,28,29,0.05)",
+                  transition: "background-color 0.5s ease",
+                }}
+              >
+                {/* 카드 헤더 — 탭하면 펼침 */}
+                <button
+                  type="button"
+                  onClick={() => toggle(s.id)}
+                  className="w-full text-left px-4 py-3.5 flex items-center justify-between gap-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    {/* 1행: 북마크 + 사이트명 */}
+                    <div className="flex items-center gap-1.5 mb-1">
+                      {s.bookmark && (
+                        <span style={{ color: "#E6007E" }}>
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                          </svg>
+                        </span>
+                      )}
+                      {externalUrl ? (
+                        <a
+                          href={externalUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-semibold truncate hover:text-[#E6007E] hover:underline underline-offset-2"
+                          style={{ color: "#1A1C1E" }}
+                        >
+                          {s.alias || s.name}
+                        </a>
+                      ) : (
+                        <span className="font-semibold truncate" style={{ color: "#1A1C1E" }}>
+                          {s.alias || s.name}
+                        </span>
+                      )}
+                      <span className="text-[10px] shrink-0" style={{ color: "#c4c7ca" }}>
+                        {s.name}
+                      </span>
+                    </div>
+                    {/* 2행: 서버 + 제품 + 동시접속 뱃지들 */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span
+                        className="text-[10px] px-2 py-0.5 rounded-md font-semibold"
+                        style={{ background: serverColor.bg, color: serverColor.color }}
+                      >
+                        {serverLabel}
+                      </span>
+                      {s.productName && (
+                        <span
+                          className="text-[10px] px-2 py-0.5 rounded-md font-medium"
+                          style={{ background: PRODUCT_BADGE.bg, color: PRODUCT_BADGE.color }}
+                        >
+                          {s.productName}
+                        </span>
+                      )}
+                      <span className="text-[11px]" style={{ color: "#9ca3af" }}>
+                        동시접속 <span className="font-semibold" style={{ color: "#1A1C1E" }}>{sessionTotal.toLocaleString("ko-KR")}</span>
+                      </span>
+                      <span className="text-[11px]" style={{ color: "#9ca3af" }}>
+                        · 라이선스 <span className="font-semibold" style={{ color: "#1A1C1E" }}>{lics.length}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <Caret open={isOpen} />
+                </button>
+
+                {/* 펼침 영역 — 라이선스 카드 리스트 */}
+                {isOpen && (
+                  <div className="px-3 pb-3 pt-1 space-y-2" style={{ borderTop: "1px solid #f3f4f5" }}>
+                    {lics.length === 0 ? (
+                      <p className="text-xs text-center py-4" style={{ color: "#9ca3af" }}>라이선스가 없습니다.</p>
+                    ) : (
+                      lics.map((l) => {
+                        const licColor = l.licenseColor || (l.licenseType ? LICENSE_FALLBACK[l.licenseType] : null) || "#9ca3af";
+                        const tColor = l.siteLicenseType ? TYPE_COLOR[l.siteLicenseType] : null;
+                        const end = l.endDate ? new Date(l.endDate) : null;
+                        const start = l.startDate ? new Date(l.startDate) : null;
+                        const isActive = l.licenseStatus === true;
+                        const fmtDate = (d: Date | null) =>
+                          d ? d.toLocaleDateString("ko-KR", { year: "2-digit", month: "2-digit", day: "2-digit" }) : "—";
+                        return (
+                          <div
+                            key={l.id}
+                            className="rounded-xl px-3 py-2.5"
+                            style={{ background: "#fafbfc", border: "1px solid #f1f3f5" }}
+                          >
+                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {l.siteLicenseType && tColor && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-md font-semibold" style={{ background: tColor.bg, color: tColor.color }}>
+                                    {l.siteLicenseType}
+                                  </span>
+                                )}
+                                {l.licenseName && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-md font-semibold" style={{ background: withAlpha(licColor, 0.12), color: licColor }}>
+                                    {l.licenseName}
+                                  </span>
+                                )}
+                              </div>
+                              {l.licenseStatus != null && (
+                                <span className="inline-flex items-center gap-1 text-[11px] shrink-0" style={{ color: isActive ? "#16a34a" : "#9ca3af" }}>
+                                  <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: isActive ? "#16a34a" : "#c4c7ca" }} />
+                                  {isActive ? "활성" : "비활성"}
+                                </span>
+                              )}
+                            </div>
+                            {l.plan && (
+                              <div className="text-sm font-medium mb-1 truncate" style={{ color: "#1A1C1E" }}>{l.plan}</div>
+                            )}
+                            <div className="flex items-center gap-2 text-[11px] flex-wrap" style={{ color: "#9ca3af" }}>
+                              <span>동시접속 <span className="font-semibold" style={{ color: "#1A1C1E" }}>{l.sessionCount ?? "—"}</span></span>
+                              <span>·</span>
+                              <span>{fmtDate(start)} ~ {fmtDate(end)}</span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* 데스크톱: 테이블 */}
       <div
-        className="rounded-2xl overflow-hidden"
+        className="hidden md:block rounded-2xl overflow-hidden"
         style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25, 28, 29, 0.06)" }}
       >
         <table className="w-full text-sm">
           <thead>
             <tr style={{ borderBottom: "1px solid #edeeef" }}>
               <Th>사이트</Th>
-              <Th>서버</Th>
-              <Th>제품</Th>
+              <Th hideMobile>서버</Th>
+              <Th hideMobile>제품</Th>
               <Th align="right">동시접속(활성)</Th>
               <Th align="right" style={{ width: 60 }}> </Th>
             </tr>
@@ -295,7 +449,7 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
                           </span>
                         </div>
                       </Td>
-                      <Td>
+                      <Td hideMobile>
                         {(() => {
                           const c = SERVER_COLOR[s.server] ?? { bg: "#edeeef", color: "#4F4F4F" };
                           const label = SERVER_LABEL[s.server] ?? s.server;
@@ -310,7 +464,7 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
                           );
                         })()}
                       </Td>
-                      <Td>
+                      <Td hideMobile>
                         {s.productName ? (
                           <span
                             className="text-[10px] px-2 py-0.5 rounded-md font-medium"
@@ -335,13 +489,14 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
                     {/* Expanded license cards */}
                     {isOpen && (
                       <tr style={{ borderBottom: "1px solid #f3f4f5", background: "#fafbfc" }}>
-                        <td colSpan={5} className="px-6 py-5">
+                        <td colSpan={5} className="px-3 md:px-6 py-4 md:py-5">
                           {lics.length === 0 ? (
                             <p className="text-xs text-center py-4" style={{ color: "#9ca3af" }}>
                               라이선스가 없습니다.
                             </p>
                           ) : (
-                            <table className="w-full text-sm">
+                            <div className="overflow-x-auto">
+                            <table className="w-full text-sm min-w-[500px]">
                               <thead>
                                 <tr style={{ borderBottom: "1px solid #edeeef" }}>
                                   <th className="px-3 py-2 text-left text-[10px] uppercase tracking-wider font-medium whitespace-nowrap" style={{ color: "#9ca3af" }}>구분</th>
@@ -434,6 +589,7 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
                                 })}
                               </tbody>
                             </table>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -458,14 +614,16 @@ function Th({
   children,
   align,
   style,
+  hideMobile,
 }: {
   children: React.ReactNode;
   align?: "right";
   style?: React.CSSProperties;
+  hideMobile?: boolean;
 }) {
   return (
     <th
-      className="px-4 py-3 text-[11px] uppercase tracking-wider font-medium whitespace-nowrap"
+      className={`px-4 py-3 text-[11px] uppercase tracking-wider font-medium whitespace-nowrap${hideMobile ? " hidden md:table-cell" : ""}`}
       style={{ color: "#9ca3af", textAlign: align ?? "left", ...style }}
     >
       {children}
@@ -473,9 +631,12 @@ function Th({
   );
 }
 
-function Td({ children, align }: { children: React.ReactNode; align?: "right" }) {
+function Td({ children, align, hideMobile }: { children: React.ReactNode; align?: "right"; hideMobile?: boolean }) {
   return (
-    <td className="px-4 py-3 whitespace-nowrap" style={{ textAlign: align ?? "left" }}>
+    <td
+      className={`px-4 py-3 whitespace-nowrap${hideMobile ? " hidden md:table-cell" : ""}`}
+      style={{ textAlign: align ?? "left" }}
+    >
       {children}
     </td>
   );

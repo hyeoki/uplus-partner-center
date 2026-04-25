@@ -250,8 +250,84 @@ export default function ArchiveShell({ categories, allArchives, filteredArchives
         </div>
         {(q || category) && <p className="text-xs -mt-2" style={{ color: "#9ca3af" }}>검색 결과 {filteredArchives.length}건</p>}
 
-        {/* 테이블 */}
-        <div className="rounded-2xl overflow-hidden" style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25,28,29,0.06)" }}>
+        {/* 모바일 카드 리스트 */}
+        <div className="md:hidden space-y-2.5">
+          {filteredArchives.length === 0 ? (
+            <div className="rounded-2xl px-5 py-12 text-center" style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25,28,29,0.06)" }}>
+              <div className="flex flex-col items-center gap-2">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e8e9ea" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+                </svg>
+                <span className="text-sm" style={{ color: "#9ca3af" }}>검색 결과가 없습니다.</span>
+              </div>
+            </div>
+          ) : (
+            filteredArchives.map((archive) => {
+              const cat = getCategoryColor(archive.category.colorId);
+              const bodyAtts = !archive.url ? getBodyAttachments(archive.content) : [];
+              const fallbackExt = !archive.ext && bodyAtts.length > 0 ? extFromName(bodyAtts[0].name) : null;
+              const displayExt = archive.ext ?? fallbackExt;
+              const extraCount = bodyAtts.length > 1 ? bodyAtts.length - 1 : 0;
+              const hasFile = !!(archive.url || hasBodyAttachments(archive.content));
+              return (
+                <button
+                  key={archive.id}
+                  type="button"
+                  onClick={() => openDetail(archive)}
+                  className="w-full text-left rounded-2xl px-4 py-3.5 flex items-start gap-3"
+                  style={{ background: "#ffffff", boxShadow: "0px 8px 24px rgba(25,28,29,0.05)" }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                      <span className="text-[10px] px-2 py-0.5 rounded-md font-medium whitespace-nowrap" style={{ background: cat.bg, color: cat.color }}>{archive.category.name}</span>
+                      {displayExt && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium uppercase" style={{ background: "#e8e9ea", color: "#4F4F4F" }}>{displayExt}</span>}
+                      {extraCount > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-medium" style={{ background: "#e8e9ea", color: "#4F4F4F" }}>+{extraCount}</span>}
+                      {archive.size && <span className="text-[11px]" style={{ color: "#9ca3af" }}>{archive.size}</span>}
+                    </div>
+                    <div className="text-sm font-semibold mb-1.5 truncate" style={{ color: "#1A1C1E" }}>{archive.title}</div>
+                    <div className="flex items-center gap-2 text-[11px]" style={{ color: "#9ca3af" }}>
+                      {archive.author ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <ListAvatar name={archive.author.name} photoUrl={archive.author.photoUrl} size={16} />
+                          <span>{archive.author.name}</span>
+                        </span>
+                      ) : (
+                        <span>-</span>
+                      )}
+                      <span>·</span>
+                      <span>{new Date(archive.createdAt).toLocaleDateString("ko-KR")}</span>
+                    </div>
+                  </div>
+                  {hasFile ? (
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const downloads: Array<{ url: string; name: string }> = [];
+                        if (archive.url) downloads.push({ url: archive.url, name: archive.fileName ?? archive.title });
+                        for (const a of getBodyAttachments(archive.content)) downloads.push({ url: a.url, name: a.name });
+                        if (downloads.length === 0) return;
+                        incrementDownload(archive.id);
+                        downloads.forEach((d, idx) => setTimeout(() => triggerDownload(d.url, d.name), idx * 200));
+                      }}
+                      role="button"
+                      title={archive.url ? "다운로드" : "첨부파일 다운로드"}
+                      className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg transition-all hover:opacity-80"
+                      style={{ background: "rgba(230,0,126,0.08)", color: "#E6007E" }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                      </svg>
+                      <span className="text-xs font-medium">{archive.downloads}</span>
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {/* 데스크톱 테이블 */}
+        <div className="hidden md:block rounded-2xl overflow-hidden" style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25,28,29,0.06)" }}>
           <table className="w-full text-sm table-fixed">
             <colgroup>
               <col className="w-[110px] md:w-[140px]" />

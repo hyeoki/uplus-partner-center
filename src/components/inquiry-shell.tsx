@@ -209,6 +209,14 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
     if (!selected) return;
     const formData = new FormData(e.currentTarget);
     formData.set("inquiryId", selected.id);
+    // 데스크톱/모바일 두 textarea가 같은 name="reply" → 비어있지 않은 값 채택
+    const replies = formData.getAll("reply").map((v) => String(v));
+    const reply = replies.find((v) => v.trim().length > 0) ?? "";
+    if (!reply.trim()) {
+      setReplyError("답변 내용을 입력해주세요.");
+      return;
+    }
+    formData.set("reply", reply);
     setReplyError("");
     startReplyTransition(async () => {
       const result = await replyInquiry(null, formData);
@@ -286,8 +294,63 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
         </div>
         {(q || catFilter) && <p className="text-xs -mt-2" style={{ color: "#9ca3af" }}>검색 결과 {filteredInquiries.length}건</p>}
 
+        {/* 모바일 카드 리스트 */}
+        <div className="md:hidden space-y-2.5">
+          {filteredInquiries.length === 0 ? (
+            <div className="rounded-2xl px-5 py-12 text-center text-sm" style={{ background: "#ffffff", color: "#9ca3af", boxShadow: "0px 12px 32px rgba(25,28,29,0.06)" }}>
+              {q || catFilter ? "검색 결과가 없습니다." : "아직 등록된 문의가 없습니다."}
+            </div>
+          ) : (
+            filteredInquiries.map((qItem) => {
+              const cat = CATEGORY_BADGE[qItem.category] ?? CATEGORY_BADGE["기타"];
+              const st = STATUS_LABEL[qItem.status] ?? STATUS_LABEL.open;
+              const date = new Date(qItem.createdAt);
+              return (
+                <button
+                  key={qItem.id}
+                  type="button"
+                  onClick={() => qItem.canViewBody && openDetail(qItem)}
+                  disabled={!qItem.canViewBody}
+                  className="w-full text-left rounded-2xl px-4 py-3.5 disabled:cursor-not-allowed"
+                  style={{ background: "#ffffff", boxShadow: "0px 8px 24px rgba(25,28,29,0.05)" }}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] px-2 py-0.5 rounded-md font-medium whitespace-nowrap" style={{ background: cat.bg, color: cat.color }}>{qItem.category}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-md font-medium whitespace-nowrap" style={{ background: st.bg, color: st.color }}>{st.label}</span>
+                    </div>
+                  </div>
+                  <div className="text-sm font-semibold mb-1.5 line-clamp-2 inline-flex items-start gap-1.5" style={{ color: qItem.canViewBody ? "#1A1C1E" : "#9ca3af" }}>
+                    {qItem.canViewBody ? (
+                      <>
+                        {qItem.isPrivate && (
+                          <svg className="mt-0.5 shrink-0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0110 0v4" />
+                          </svg>
+                        )}
+                        <span>{qItem.title}</span>
+                      </>
+                    ) : (
+                      <span>🔒 비밀글입니다.</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px]" style={{ color: "#9ca3af" }}>
+                    <span className="inline-flex items-center gap-1.5">
+                      <ListAvatar name={qItem.user.name} photoUrl={qItem.user.photoUrl} size={16} />
+                      <span>{qItem.user.name}</span>
+                    </span>
+                    <span>·</span>
+                    <span>{formatDate(date)}</span>
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+
         <div
-          className="rounded-2xl overflow-hidden"
+          className="hidden md:block rounded-2xl overflow-hidden"
           style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25, 28, 29, 0.06)" }}
         >
           {filteredInquiries.length === 0 ? (
@@ -553,14 +616,14 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
 
                 {isAdmin && (showReplyForm || !selected.reply) && (
                   <form onSubmit={handleReplySubmit} className="space-y-2">
-                    <div className="flex gap-3">
+                    {/* 데스크톱: 기존 레이아웃 (textarea 아래 버튼) */}
+                    <div className="hidden md:flex gap-3">
                       <Avatar name={adminProfile?.name ?? "관리자"} variant="admin" photoUrl={adminProfile?.photoUrl ?? null} />
                       <div className="flex-1 min-w-0">
                         <textarea
                           name="reply"
                           defaultValue={selected.reply ?? ""}
                           placeholder="답변을 작성해주세요"
-                          required
                           rows={3}
                           autoFocus={showReplyForm}
                           className="w-full rounded-2xl px-4 py-3 text-sm outline-none resize-y transition-all focus:border-[#E6007E]"
@@ -590,6 +653,57 @@ export default function InquiryShell({ inquiries, isAdmin = false, adminProfile 
                           </button>
                         </div>
                       </div>
+                    </div>
+
+                    {/* 모바일: 한 줄 입력 + 우측 전송 아이콘 (Slack/카카오 패턴) */}
+                    <div className="md:hidden">
+                      {showReplyForm && (
+                        <div className="flex justify-end mb-1.5">
+                          <button
+                            type="button"
+                            onClick={() => { setShowReplyForm(false); setReplyError(""); }}
+                            className="text-[11px] px-2 py-0.5 rounded-md hover:bg-gray-100"
+                            style={{ color: "#9ca3af" }}
+                          >
+                            취소
+                          </button>
+                        </div>
+                      )}
+                      <div
+                        className="flex items-end gap-2 rounded-2xl pl-3 pr-1.5 py-1.5"
+                        style={{ background: "#fafbfc", border: "1px solid #e8e9ea" }}
+                      >
+                        <textarea
+                          name="reply"
+                          defaultValue={selected.reply ?? ""}
+                          placeholder={selected.reply ? "답변 수정..." : "답변을 작성해주세요"}
+                          rows={1}
+                          autoFocus={showReplyForm}
+                          className="flex-1 min-w-0 resize-none bg-transparent text-sm outline-none placeholder:text-[#9ca3af] leading-5 py-2 max-h-[140px]"
+                          style={{ height: "36px" }}
+                          onInput={(e) => {
+                            const el = e.currentTarget;
+                            el.style.height = "auto";
+                            el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+                          }}
+                        />
+                        <button
+                          type="submit"
+                          disabled={isReplying}
+                          aria-label={selected.reply ? "수정 완료" : "답변 등록"}
+                          title={selected.reply ? "수정 완료" : "답변 등록"}
+                          className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-full transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+                          style={{ background: "#E6007E", color: "#ffffff" }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13" />
+                            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                          </svg>
+                        </button>
+                      </div>
+                      {replyError && (
+                        <p className="text-xs mt-1.5" style={{ color: "#E6007E" }}>{replyError}</p>
+                      )}
                     </div>
                   </form>
                 )}

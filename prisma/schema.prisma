@@ -1,7 +1,7 @@
 generator client {
   provider = "prisma-client-js"
-  // Synology NAS(glibc 2.26) 호환 위해 musl 정적 링크 바이너리 포함
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-1.1.x"]
+  // 멀티 환경 지원: Synology NAS(musl), AWS EC2 ARM64(Ubuntu/Amazon Linux)
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-1.1.x", "linux-arm64-openssl-3.0.x", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {

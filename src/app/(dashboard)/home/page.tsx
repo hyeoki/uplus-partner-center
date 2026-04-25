@@ -242,11 +242,17 @@ export default async function HomePage() {
 
       {/* Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard label="고객사" value={String(totalSiteCount)} delta={recentSiteCount} />
+        <MetricCard
+          label="고객사"
+          value={String(totalSiteCount)}
+          delta={recentSiteCount}
+          href="/customers"
+        />
         <MetricCard
           label="활성화 라이선스"
           value={officialSessionTotal.toLocaleString("ko-KR")}
           delta={recentOfficialSessionTotal}
+          href="/customers"
         />
         <MetricCard
           label="새로운 공지"
@@ -583,7 +589,7 @@ export default async function HomePage() {
                       {notice.tag}
                     </span>
                     <span
-                      className="text-sm flex-1 truncate font-medium"
+                      className="text-sm flex-1 truncate"
                       style={{ color: "#1A1C1E" }}
                     >
                       {notice.pinned && (
@@ -645,7 +651,7 @@ export default async function HomePage() {
                     {archive.category.name}
                   </span>
                   <span
-                    className="text-sm flex-1 truncate font-medium"
+                    className="text-sm flex-1 truncate"
                     style={{ color: "#1A1C1E" }}
                   >
                     {archive.title}

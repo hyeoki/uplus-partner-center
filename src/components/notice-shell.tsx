@@ -270,8 +270,53 @@ export default function NoticeShell({ notices, isAdmin = false, currentUserId = 
         </div>
         {(q || tagFilter) && <p className="text-xs -mt-2" style={{ color: "#9ca3af" }}>검색 결과 {filteredNotices.length}건</p>}
 
-        {/* 테이블 */}
-        <div className="rounded-2xl overflow-hidden" style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25,28,29,0.06)" }}>
+        {/* 모바일 카드 리스트 */}
+        <div className="md:hidden space-y-2.5">
+          {filteredNotices.length === 0 ? (
+            <div className="rounded-2xl px-5 py-12 text-center text-sm" style={{ background: "#ffffff", color: "#9ca3af", boxShadow: "0px 12px 32px rgba(25,28,29,0.06)" }}>
+              {q || tagFilter ? "검색 결과가 없습니다." : "등록된 공지사항이 없습니다."}
+            </div>
+          ) : (
+            filteredNotices.map((notice) => {
+              const tag = getTagColor(notice.tag);
+              return (
+                <button
+                  key={notice.id}
+                  type="button"
+                  onClick={() => openDetail(notice)}
+                  className="w-full text-left rounded-2xl px-4 py-3.5"
+                  style={{ background: "#ffffff", boxShadow: "0px 8px 24px rgba(25,28,29,0.05)" }}
+                >
+                  <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                    <span className="text-[10px] px-2 py-0.5 rounded-md font-medium whitespace-nowrap" style={{ background: tag.bg, color: tag.color }}>{notice.tag}</span>
+                    {notice.pinned && (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-semibold" style={{ background: "rgba(230,0,126,0.10)", color: "#E6007E" }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#E6007E" }} />
+                        고정
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm font-semibold mb-1.5 line-clamp-2" style={{ color: "#1A1C1E" }}>{notice.title}</div>
+                  <div className="flex items-center gap-2 text-[11px]" style={{ color: "#9ca3af" }}>
+                    {notice.author ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <ListAvatar name={notice.author.name} photoUrl={notice.author.photoUrl} size={16} />
+                        <span>{notice.author.name}</span>
+                      </span>
+                    ) : (
+                      <span>-</span>
+                    )}
+                    <span>·</span>
+                    <span>{new Date(notice.createdAt).toLocaleDateString("ko-KR")}</span>
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {/* 데스크톱 테이블 */}
+        <div className="hidden md:block rounded-2xl overflow-hidden" style={{ background: "#ffffff", boxShadow: "0px 12px 32px rgba(25,28,29,0.06)" }}>
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: "1px solid rgba(230,0,126,0.08)" }}>
