@@ -68,7 +68,7 @@ export default function CustomersTable({ sites }: { sites: SiteRow[] }) {
   const [statusFilter, setStatusFilter] = useState<string>("active"); // all/active/expired
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [highlightId, setHighlightId] = useState<string | null>(null);
-  const rowRefs = useRef<Map<string, HTMLTableRowElement | null>>(new Map());
+  const rowRefs = useRef<Map<string, HTMLElement | null>>(new Map());
 
   // ?openId=xxx → 해당 사이트 row를 펼치고 스크롤 + 잠시 강조
   const router = useRouter();
